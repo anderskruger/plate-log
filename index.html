@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Instrument+Sans:wght@400;500;600&display=swap">
 <style>
 /* Layout: one phone-width column; session screen takes on the workout's bumper-plate colour; rest clock docks at the bottom. Deliberately dark-only (gym use, high contrast). */
 :root {
@@ -214,7 +214,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   padding-top: 18px;
 }
 .dock-inner { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
-.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--raised); border-radius: 16px; padding: 4px; gap: 4px; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--raised); border-radius: 16px; padding: 4px; gap: 4px; }
 .tab { height: 46px; border-radius: 12px; font-weight: 600; font-size: 14px; color: var(--dim); display: flex; align-items: center; justify-content: center; gap: 8px; }
 .tab svg { width: 18px; height: 18px; }
 .tab.on { background: var(--raised-2); color: var(--chalk); }
@@ -381,6 +381,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 </style>
+<link rel="stylesheet" href="quest.css?v=1">
 </head>
 <body>
 <div id="app" class="app"></div>
@@ -388,6 +389,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 <div id="sheet-root"></div>
 <div id="toast" class="toast" hidden></div>
 
+<script src="quest.js?v=1"></script>
 <script>
 /* ---------- The plan. In the real app this lives in a file Claude edits when you describe a change. ---------- */
 const PLAN = [
@@ -427,7 +429,7 @@ const KEY = 'platelog-v1';
 
 /* ---------- state ---------- */
 let S = load() || fresh();
-let view = { screen: S.active ? 'session' : 'home', workoutId: null, month: null, selDay: null, summary: null };
+let view = { screen: S.active ? 'session' : S.quest ? 'quests' : 'home', workoutId: null, month: null, selDay: null, summary: null };
 let sheet = null;          // { type, ... }
 let focus = null;          // the set shown on the workout screen: { exId, i, weight, reps, rot }
 let clearArmed = false;
@@ -442,7 +444,7 @@ try { navigator.storage && navigator.storage.persist && navigator.storage.persis
 
 /* ---------- backup: your history as a file you keep ---------- */
 function exportBackup() {
-  const data = { app: 'plate-log', version: 1, exported: new Date().toISOString(), history: S.history, volume: S.volume, sound: S.sound, announcer: S.announcer };
+  const data = { app: 'plate-log', version: 1, exported: new Date().toISOString(), history: S.history, questLog: S.questLog || [], hero: S.hero, volume: S.volume, sound: S.sound, announcer: S.announcer };
   const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -457,8 +459,13 @@ async function importBackup(file) {
     if (data.app !== 'plate-log' || !Array.isArray(data.history)) throw new Error('not a Plate Log backup');
     const have = new Set(S.history.map(h => h.id));
     const added = data.history.filter(h => !have.has(h.id));
-    S.history.push(...added); rebuildLast(S); save();
-    sheet = null; render(); toast(`Restored ${added.length} workout${added.length === 1 ? '' : 's'}`);
+    S.history.push(...added); rebuildLast(S);
+    const haveQ = new Set((S.questLog || []).map(q => q.id));   // quest mode sessions and the hero's level
+    const addedQ = (data.questLog || []).filter(q => !haveQ.has(q.id));
+    (S.questLog ||= []).push(...addedQ);
+    if (data.hero && (!S.hero || data.hero.level > S.hero.level || (data.hero.level === S.hero.level && data.hero.xp > S.hero.xp))) S.hero = data.hero;
+    save();
+    sheet = null; render(); toast(`Restored ${added.length} workout${added.length === 1 ? '' : 's'}${addedQ.length ? ` and ${addedQ.length} quest session${addedQ.length === 1 ? '' : 's'}` : ''}`);
   } catch (e) { toast(`Couldn't restore: ${e.message}`); }
 }
 function rebuildLast(s) {
@@ -859,10 +866,11 @@ function syncCard(now) {
   clearTimeout(syncCard.t);
   if (!now) { syncCard.t = setTimeout(() => syncCard(true), 60); return; }
   const a = S.active;
-  if (!a) { if (cardSent) { cardSent = ''; card.hide().catch(() => {}); } return; }
-  const since = a.lastLogAt || 0; const sec = (Date.now() - since) / 1000;
+  const quest = S.quest && qCardOk();   // quest mode needs the card from app-shell build 3
+  if (!a && !quest) { if (cardSent) { cardSent = ''; card.hide().catch(() => {}); } return; }
+  const since = a && a.lastLogAt || 0; const sec = (Date.now() - since) / 1000;
   let stage = null; STAGES.forEach(s => { if (since && sec >= s.t) stage = s; });
-  const st = {
+  const st = quest ? qCardState() : {
     steps: upcomingSets(),
     since, label: stage ? stage.label : 'Resting', restLabel: 'Resting',
     button: 'Log set', doneTitle: 'All sets done', doneText: 'Open Plate Log to finish',
@@ -880,7 +888,10 @@ function takeCardSets() {
   if (!card) return taking;
   return taking = taking.then(async () => {
     let r; try { r = await card.take(); } catch (e) { return; }
-    const evs = ((r && r.events) || []).sort((x, y) => x.at - y.at);
+    const all = ((r && r.events) || []).sort((x, y) => x.at - y.at);
+    const isQuest = ev => ev.data && ev.data.kind === 'quest';
+    if (all.some(isQuest)) qTakeCardQuests(all.filter(isQuest));
+    const evs = all.filter(ev => !isQuest(ev));
     const a = S.active; if (!a || !evs.length) return;
     let n = 0;
     evs.forEach(ev => {
@@ -899,8 +910,9 @@ async function cacheCardSounds() {
     const have = new Set(((await card.listSounds()) || {}).sounds || []);
     const takes = CALLS.flatMap(c => (custom[c.id] || []).filter(t => t.file).map(t => ({ group: c.id, name: cardName(t.name), file: t.file })));
     for (const t of takes) if (!have.has(t.group + '/' + t.name)) await card.cacheSound({ group: t.group, name: t.name, data: await toBase64(t.file) });
-    if (takes.length) await card.pruneSounds({ keep: takes.map(t => t.group + '/' + t.name) });
+    if (takes.length) await card.pruneSounds({ keep: [...takes.map(t => t.group + '/' + t.name), 'questcomplete/complete.wav'] });
   } catch (e) {}
+  qCacheCardSound();
 }
 nativeSetup();
 
@@ -1048,7 +1060,7 @@ function screenHome() {
     <div><div class="brand">Plate Log</div><div class="meta">${DAYS[today.getDay()]}day ${today.getDate()} ${MONTHS[today.getMonth()]}</div></div>
     <button class="icon-btn" data-act="settings" aria-label="Settings">${ICON.gear}</button>
   </div>
-  ${resume}
+  ${resume}${qResumeBanner()}
   <div class="next-card c-${next.color}">
     <div class="eyebrow">Up next in your rotation</div>
     <div class="next-head">
@@ -1058,7 +1070,7 @@ function screenHome() {
     ${lengthToggle(next)}
     <div class="ex-preview">${planExercises(next, view.short).map(e => e.name).join(' · ')}</div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
-      <button class="btn btn-primary" data-act="start" data-w="${next.id}" ${S.active ? 'disabled style="opacity:.4"' : ''}>Start ${view.short ? 'short ' : ''}workout</button>
+      <button class="btn btn-primary" data-act="start" data-w="${next.id}" ${S.active || S.quest ? 'disabled style="opacity:.4"' : ''}>Start ${view.short ? 'short ' : ''}workout</button>
       <button class="btn btn-ghost" data-act="preview" data-w="${next.id}">See plan</button>
     </div>
   </div>
@@ -1232,18 +1244,22 @@ function screenHistory() {
   }
   const { y, m } = view.month;
   const inMonth = S.history.filter(h => { const d = new Date(h.start); return d.getFullYear() === y && d.getMonth() === m; }).sort((a, b) => b.start - a.start);
+  const questsIn = (S.questLog || []).filter(q => { const d = new Date(q.start); return d.getFullYear() === y && d.getMonth() === m; });
   const first = new Date(y, m, 1); const offset = (first.getDay() + 6) % 7; // Monday first
   const nDays = new Date(y, m + 1, 0).getDate();
   const cells = [];
   for (let i = 0; i < offset; i++) cells.push('<span class="day out"></span>');
   for (let d = 1; d <= nDays; d++) {
     const sess = inMonth.filter(h => new Date(h.start).getDate() === d);
+    const qs = questsIn.filter(q => new Date(q.start).getDate() === d);
     const isToday = now.getFullYear() === y && now.getMonth() === m && now.getDate() === d;
     const sel = view.selDay === d;
-    cells.push(`<button class="day ${sess.length ? 'has' : ''} ${isToday ? 'today' : ''} ${sel ? 'sel' : ''}" data-act="day" data-d="${d}" ${sess.length ? '' : 'tabindex="-1"'}>
-      <span class="num">${d}</span><span class="dots">${sess.map(s => `<i class="c-${byId(s.workoutId).color}"></i>`).join('')}</span></button>`);
+    const any = sess.length + qs.length;
+    cells.push(`<button class="day ${any ? 'has' : ''} ${isToday ? 'today' : ''} ${sel ? 'sel' : ''}" data-act="day" data-d="${d}" ${any ? '' : 'tabindex="-1"'}>
+      <span class="num">${d}</span><span class="dots">${sess.map(s => `<i class="c-${byId(s.workoutId).color}"></i>`).join('')}${qs.map(() => '<i class="qdot">!</i>').join('')}</span></button>`);
   }
-  const list = view.selDay ? inMonth.filter(h => new Date(h.start).getDate() === view.selDay) : inMonth;
+  const onDay = h => !view.selDay || new Date(h.start).getDate() === view.selDay;
+  const list = [...inMonth.filter(onDay), ...questsIn.filter(onDay).map(q => ({ ...q, quest: true }))].sort((a, b) => b.start - a.start);
   // workouts per week over the last 4 weeks
   const fourWk = S.history.filter(h => h.start > Date.now() - 28 * 86400000).length;
   return `
@@ -1262,15 +1278,21 @@ function screenHistory() {
     ${['M','T','W','T','F','S','S'].map(d => `<span class="dow">${d}</span>`).join('')}
     ${cells.join('')}
   </div>
-  <div class="legend">${PLAN.map(w => `<span><i class="c-${w.color}"></i>${w.name}</span>`).join('')}</div>
+  <div class="legend">${PLAN.map(w => `<span><i class="c-${w.color}"></i>${w.name}</span>`).join('')}<span><i class="qdot">!</i>Quest mode</span></div>
   <div>
     <div class="eyebrow" style="padding-bottom:4px">${view.selDay ? fmtDate(new Date(y, m, view.selDay)) + ' · <button data-act="day" data-d="' + view.selDay + '" style="color:var(--chalk);letter-spacing:inherit;text-transform:inherit;font-size:inherit;font-weight:inherit">Show whole month</button>' : 'Sessions this month'}</div>
-    ${list.length ? list.map(h => { const w = byId(h.workoutId); return `
+    ${list.length ? list.map(h => { if (h.quest) return `
+      <button class="hist-row" data-act="q-detail" data-id="${h.id}">
+        ${qMarker('!', 22)}
+        <span class="grow"><b>Quest mode</b><br><span class="meta">${fmtDate(h.start)} · started ${fmtTime(h.start)}</span></span>
+        <span class="r num">${fmtDur(h.end - h.start)}<br>${h.done} quest${h.done === 1 ? '' : 's'}</span>
+      </button>`;
+      const w = byId(h.workoutId); return `
       <button class="hist-row" data-act="detail" data-id="${h.id}">
         <span class="plate sm c-${w.color}"></span>
         <span class="grow"><b>${w.name}</b>${h.short ? ' <span class="meta">· short</span>' : ''}<br><span class="meta">${fmtDate(h.start)} · started ${fmtTime(h.start)}</span></span>
         <span class="r num">${fmtDur(h.end - h.start)}<br>${h.sets.length} sets</span>
-      </button>`; }).join('') : `<div class="empty">No workouts logged ${view.selDay ? 'on this day' : 'this month'}.</div>`}
+      </button>`; }).join('') : `<div class="empty">Nothing logged ${view.selDay ? 'on this day' : 'this month'}.</div>`}
   </div>`;
 }
 
@@ -1289,11 +1311,14 @@ function renderDock() {
         ${STAGES.map(s => `<span class="track-mark" style="left:${s.t / TRACK_MAX * 100}%"><span class="num">${fmtClock(s.t * 1000)}</span></span>`).join('')}
       </div></div>
     </div>`;
-  } else if (view.screen !== 'summary') {
-    const histOn = view.screen === 'history';
+  } else if (view.screen === 'quests' && S.quest) {
+    html += qDockHtml();
+  } else if (view.screen !== 'summary' && view.screen !== 'quest-summary') {
+    const on = view.screen === 'history' ? 'history' : view.screen === 'quests' ? 'quests' : 'home';
     html += `<nav class="tabs">
-      <button class="tab ${histOn ? '' : 'on'}" data-act="home">${ICON.dumbbell} Train</button>
-      <button class="tab ${histOn ? 'on' : ''}" data-act="history">${ICON.cal} History</button>
+      <button class="tab ${on === 'home' ? 'on' : ''}" data-act="home">${ICON.dumbbell} Train</button>
+      <button class="tab ${on === 'quests' ? 'on' : ''}" data-act="quests">${Q_ICON.tab} Quests</button>
+      <button class="tab ${on === 'history' ? 'on' : ''}" data-act="history">${ICON.cal} History</button>
     </nav>`;
   }
   dock.innerHTML = html + '</div>';
@@ -1338,6 +1363,8 @@ function renderSheet() {
   if (sheet.type === 'settings') inner = sheetSettings();
   if (sheet.type === 'detail') inner = sheetDetail();
   if (sheet.type === 'sounds') inner = sheetSounds();
+  if (sheet.type === 'q-end') inner = qSheetEnd();
+  if (sheet.type === 'q-detail') inner = qSheetDetail();
   const wk = S.active ? byId(S.active.workoutId).color : null;
   root.innerHTML = `<div class="backdrop" data-act="close-sheet"><div class="sheet" ${wk ? `style="--wk:var(--${wk})"` : ''} role="dialog" aria-modal="true">
     <span class="grabber"></span>${inner}</div></div>`;
@@ -1479,7 +1506,7 @@ function render() {
   const app = $('#app');
   const wk = S.active && view.screen === 'session' ? byId(S.active.workoutId).color : null;
   document.documentElement.style.setProperty('--wk', wk ? `var(--${wk})` : 'var(--chalk)');
-  app.innerHTML = { home: screenHome, preview: screenPreview, session: screenSession, summary: screenSummary, history: screenHistory }[view.screen]();
+  app.innerHTML = { home: screenHome, preview: screenPreview, session: screenSession, summary: screenSummary, history: screenHistory, quests: screenQuests, 'quest-summary': screenQuestSummary }[view.screen]();
   if (view.screen === 'session' && S.active) bindWheel();
   renderDock(); renderSheet();
   syncCard();
@@ -1494,7 +1521,7 @@ document.addEventListener('click', e => {
     case 'home': view.screen = 'home'; clearArmed = false; render(); scrollTo(0, 0); break;
     case 'history': view.screen = 'history'; view.selDay = null; render(); scrollTo(0, 0); break;
     case 'preview': view.screen = 'preview'; view.workoutId = t.dataset.w; render(); scrollTo(0, 0); break;
-    case 'start': if (!S.active) { startWorkout(t.dataset.w, view.short); scrollTo(0, 0); } break;
+    case 'start': if (S.quest) toast('End quest mode first'); else if (!S.active) { startWorkout(t.dataset.w, view.short); scrollTo(0, 0); } break;
     case 'len': view.short = t.dataset.short === '1'; render(); break;
     case 'resume': view.screen = 'session'; keepAwake(); render(); break;
     case 'undo': undoSet(focus.exId, focus.i); break;
@@ -1509,7 +1536,7 @@ document.addEventListener('click', e => {
     case 'finish-yes': finishWorkout(); scrollTo(0, 0); break;
     case 'discard': if (sheet.armed) discardWorkout(); else { sheet.armed = true; renderSheet(); } break;
     case 'settings': sheet = { type: 'settings' }; renderSheet(); break;
-    case 'toggle-sound': S.sound = !S.sound; save(); ensureAudio(); renderDock(); if (sheet) renderSheet(); toast(S.sound ? 'Rest sounds on' : 'Rest sounds muted'); break;
+    case 'toggle-sound': S.sound = !S.sound; save(); ensureAudio(); renderDock(); if (sheet) renderSheet(); toast(S.sound ? 'Sounds on' : 'Sounds muted'); break;
     case 'play': playStage(t.dataset.s, true); break;
     case 'export': exportBackup(); break;
     case 'toggle-announcer': S.announcer = S.announcer === false; save(); renderSheet(); toast(S.announcer ? 'Announcer on' : 'Announcer off'); break;
@@ -1525,6 +1552,7 @@ document.addEventListener('click', e => {
       if (clearArmed) { S.history = S.history.filter(h => !h.sample); S.sample = false; rebuildLast(S); save(); clearArmed = false; view.month = null; render(); toast('Example sessions removed'); }
       else { clearArmed = true; render(); }
       break;
+    default: qHandle(act, t);
   }
 });
 
