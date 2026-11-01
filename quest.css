@@ -29,6 +29,7 @@
 .qm-board h2 { font-size: 40px; line-height: 1; color: var(--q-gold); text-shadow: 0 2px 0 #0008; }
 .qm-board p { margin: -8px 0 0; color: var(--dim); }
 .qm-seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; padding: 5px; border-radius: 14px; background: #0e0f12; box-sizing: border-box; }
+.qm-seg.two { grid-template-columns: 1fr 1fr; }
 .qm-seg button { height: 40px; border-radius: 10px; color: var(--dim); font-weight: 600; font-size: 14px; }
 .qm-seg button.on { background: var(--raised-2); color: var(--q-gold); box-shadow: inset 0 0 0 1px #6b5524; }
 .qm-last { margin: 0; text-align: center; }

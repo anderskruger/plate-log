@@ -1,8 +1,8 @@
 // Offline support for Plate Log.
 // Pages: try the network briefly so new versions show up, fall back to the saved copy when there's no signal.
 // Everything else (icons, fonts): saved copy first, refreshed in the background.
-const CACHE = 'platelog-v4';
-const SHELL = ['./', 'index.html', 'quest.js?v=3', 'quest-sprite.js?v=1', 'quest.css?v=3', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'platelog-v5';
+const SHELL = ['./', 'index.html', 'quest.js?v=4', 'quest-sprite.js?v=2', 'quest.css?v=4', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));

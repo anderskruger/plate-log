@@ -108,6 +108,60 @@ const QSprite = (() => {
     eyes: { ms: 4000, props: ['sun'],
       a: { hip: [26, 34.8], ...STAND, arms: { n: { toJ: 'H', off: [3.6, -3.2], bend: 1 }, f: { a: [-4, -2] } } },
       b: { hip: [26, 34.8], ...STAND, hd: 8, arms: { n: { toJ: 'H', off: [3.6, -3.2], bend: 1 }, f: { a: [-4, -2] } } } },
+    // ---- office mode: standing, seated and walking ----
+    hipstand: { ms: 4200,
+      a: { hip: [28, 38], t: 180, hd: 0, legs: { n: { to: [38.5, 56.6], bend: -1 }, f: { to: [14.5, 56.6], bend: -1 } },
+           arms: { n: { toJ: 'P', off: [2.5, -1.5], bend: 1 }, f: { toJ: 'P', off: [1.5, -1], bend: 1 } } },
+      b: { hip: [30.5, 40], t: 186, hd: -4, legs: { n: { to: [38.5, 56.6], bend: -1 }, f: { to: [14.5, 56.6], bend: -1 } },
+           arms: { n: { toJ: 'P', off: [2.5, -1.5], bend: 1 }, f: { toJ: 'P', off: [1.5, -1], bend: 1 } } } },
+    catcowseat: { ms: 3600, props: ['chair'],
+      a: { ...SEAT, t: 176, hd: 22, arch: -4, arms: { n: { toJ: 'Kn', off: [0, -1.5], bend: -1 }, f: { toJ: 'Kf', off: [0, -1.5], bend: -1 } } },
+      b: { ...SEAT, t: 172, hd: -30, arch: 5, arms: { n: { toJ: 'Kn', off: [0, -1.5], bend: -1 }, f: { toJ: 'Kf', off: [0, -1.5], bend: -1 } } } },
+    shoulders: { ms: 1600, props: ['chair'],
+      a: { ...SEAT, t: 180, hd: 0, shrug: [0, 1], arms: { n: { a: [6, 40] }, f: { a: [2, 36] } } },
+      b: { ...SEAT, t: 180, hd: 0, shrug: [2.4, -1.6], arms: { n: { a: [2, 36] }, f: { a: [-2, 32] } } } },
+    chintuck: { ms: 2600, props: ['chair'],
+      a: { ...SEAT, t: 180, hd: 0, chin: 1, arms: { n: { toJ: 'Kn', off: [-2, -1.5], bend: -1 }, f: { toJ: 'Kf', off: [-2, -1.5], bend: -1 } } },
+      b: { ...SEAT, t: 180, hd: 6, chin: -2.2, arms: { n: { toJ: 'Kn', off: [-2, -1.5], bend: -1 }, f: { toJ: 'Kf', off: [-2, -1.5], bend: -1 } } } },
+    quad: { ms: 4000, props: ['chairF'],
+      a: { hip: [30, 34.8], t: 180, hd: 0, legs: { n: { a: [-2, -150] }, f: { a: [-1, 0] } },
+           arms: { n: { toJ: 'An', off: [0, 0], bend: 1 }, f: { to: [41, 29.6], bend: 1 } } },
+      b: { hip: [30, 34.8], t: 182, hd: -3, legs: { n: { a: [-12, -172] }, f: { a: [-1, 0] } },
+           arms: { n: { toJ: 'An', off: [0, 0], bend: 1 }, f: { to: [41, 29.6], bend: 1 } } } },
+    hamstring: { ms: 4000,
+      a: { hip: [27, 36], t: 180, hd: 0, legs: { n: { to: [40, 56.4], bend: -1 }, f: { to: [25, 56.6], bend: -1 } },
+           arms: { n: { toJ: 'Kf', off: [0.5, -2.5], bend: -1 }, f: { toJ: 'Kf', off: [-0.5, -2], bend: -1 } } },
+      b: { hip: [25, 38.5], t: 128, hd: 14, legs: { n: { to: [40, 56.4], bend: -1 }, f: { to: [25, 56.6], bend: -1 } },
+           arms: { n: { toJ: 'Kf', off: [1.5, -1.5], bend: -1 }, f: { toJ: 'Kf', off: [0.5, -1], bend: -1 } } } },
+    figure4: { ms: 4200, props: ['chair'],
+      a: { hip: [24, 45.2], t: 180, hd: 0, legs: { n: { toJ: 'Kf', off: [0.5, -2.6], bend: -1 }, f: { to: [36, 56.6], bend: -1 } },
+           arms: { n: { toJ: 'Kn', off: [0, -1.5], bend: -1 }, f: { toJ: 'An', off: [0, -1], bend: -1 } } },
+      b: { hip: [24, 45.2], t: 158, hd: 14, legs: { n: { toJ: 'Kf', off: [0.5, -2.6], bend: -1 }, f: { to: [36, 56.6], bend: -1 } },
+           arms: { n: { toJ: 'Kn', off: [0, -1.5], bend: -1 }, f: { toJ: 'An', off: [0, -1], bend: -1 } } } },
+    upperback: { ms: 3600,
+      a: { hip: [30, 34.8], ...STAND, arms: { n: { a: [86, 90] }, f: { a: [84, 88] } } },
+      b: { hip: [28.5, 35.3], ...STAND, hd: -26, arch: 4.5, arms: { n: { a: [98, 96] }, f: { a: [96, 94] } } } },
+    sidereach: { ms: 4000, view: { x: 2, y: 1, size: 60 },
+      a: { hip: [30, 34.8], ...STAND, arms: { n: { a: [176, 180] }, f: { a: [174, 178] } } },
+      b: { hip: [30.5, 34.8], ...STAND, t: 168, hd: -6, arch: -2, arms: { n: { a: [160, 166] }, f: { a: [158, 164] } } } },
+    prayer: { ms: 3600,
+      a: { hip: [30, 34.8], ...STAND, fingers: 180, arms: { n: { toJ: 'S', off: [6.5, 3], bend: -1 }, f: { toJ: 'S', off: [6.2, 3.3], bend: -1 } } },
+      b: { hip: [30, 34.8], ...STAND, hd: -4, fingers: 178, arms: { n: { toJ: 'S', off: [6.5, 9.5], bend: -1 }, f: { toJ: 'S', off: [6.2, 9.8], bend: -1 } } } },
+    calves: { ms: 1600, props: ['chairF'],
+      a: { hip: [30, 34.8], t: 180, hd: 0, fa: 0, legs: { n: { a: [2, 0] }, f: { a: [-2, 0] } },
+           arms: { n: { to: [41.5, 29.6], bend: 1 }, f: { to: [41, 29.8], bend: 1 } } },
+      b: { hip: [30, 32.3], t: 180, hd: 0, fa: -48, legs: { n: { a: [2, 0] }, f: { a: [-2, 0] } },
+           arms: { n: { to: [41.5, 29.6], bend: 1 }, f: { to: [41, 29.8], bend: 1 } } } },
+    stairs: { ms: 1500, props: ['stairs'],
+      a: { hip: [30, 36], t: 176, hd: 0, legs: { n: { to: [38.5, 51.9], bend: -1 }, f: { to: [27, 56.6], bend: -1 } },
+           arms: { n: { a: [-20, -10] }, f: { a: [18, 34] } } },
+      b: { hip: [36, 31], t: 174, hd: 0, legs: { n: { to: [39, 51.9], bend: -1 }, f: { to: [44, 46.4], bend: -1 } },
+           arms: { n: { a: [20, 36] }, f: { a: [-18, -8] } } } },
+    deskpush: { ms: 1800, props: ['desk'],
+      a: { pin: { j: 'An', at: [9, 55] }, t: 140, hd: 8, legs: { n: { a: [-40, -40] }, f: { a: [-40, -40] } },
+           arms: { n: { to: [42, 40.2], bend: 1 }, f: { to: [41, 40.2], bend: 1 } } },
+      b: { pin: { j: 'An', at: [9, 55] }, t: 128, hd: 10, legs: { n: { a: [-52, -52] }, f: { a: [-52, -52] } },
+           arms: { n: { to: [42, 40.2], bend: 1 }, f: { to: [41, 40.2], bend: 1 } } } },
     cheer: { ms: 700,
       a: { hip: [30, 37], t: 180, hd: 0, legs: { n: { to: [33, 56.6], bend: -1 }, f: { to: [28, 56.6], bend: -1 } },
            arms: { n: { a: [125, 140] }, f: { a: [-125, -140] } } },
@@ -126,15 +180,18 @@ const QSprite = (() => {
 
   function solve(p) {
     const J = { P: [0, 0] };
-    J.S = add(J.P, mul(dir(p.t), LEN.torso));
-    J.H = add(J.S, mul(dir(p.t + p.hd), LEN.neck));
+    // shrug: [up, forward] nudge of the shoulders; chin: head pushed forward (+) or tucked back (-)
+    const up = dir(p.t), fwd = [-up[1], up[0]], hu = dir(p.t + p.hd), hf = [-hu[1], hu[0]], sh = p.shrug || [0, 0];
+    J.S = add(add(J.P, mul(up, LEN.torso + sh[0])), mul(fwd, sh[1]));
+    J.H = add(add(J.S, mul(hu, LEN.neck)), mul(hf, p.chin || 0));
     for (const s of ['n', 'f']) if (p.legs[s].a) [J['K' + s], J['A' + s]] = limb(J, J.P, p.legs[s], LEN.thigh, LEN.shin);
     // place the body by the hip, or so that a pinned joint lands on its spot
     const d = p.pin ? sub(p.pin.at, J[p.pin.j]) : sub(p.hip, J.P);
     for (const k in J) J[k] = add(J[k], d);
-    for (const s of ['n', 'f']) {
+    // far leg first, so a near foot can rest on the far knee (figure-four); fa tilts the foot (negative: on tiptoe)
+    for (const s of ['f', 'n']) {
       if (!p.legs[s].a) [J['K' + s], J['A' + s]] = limb(J, J.P, p.legs[s], LEN.thigh, LEN.shin);
-      J['T' + s] = add(J['A' + s], mul(dir(angleOf(sub(J['A' + s], J['K' + s])) + 90), LEN.foot));
+      J['T' + s] = add(J['A' + s], mul(dir(angleOf(sub(J['A' + s], J['K' + s])) + 90 + (p.fa || 0)), LEN.foot));
     }
     for (const s of ['n', 'f']) {
       const arm = p.arms[s];
@@ -180,6 +237,11 @@ const QSprite = (() => {
           rect(0, y, 18.5, y + 1, C.stoneD);
           for (let x = row % 2 ? 3 : 9; x < 18; x += 12) rect(x, y, x + 1, y + 7, C.stoneD);
         }
+      } else if (pr === 'chairF') {
+        rect(40, 30, 42.5, 49.6, C.wood); rect(42, 47.6, 58, 49.6, C.wood);
+        rect(41, 49.6, 42.5, 58, C.woodD); rect(55.5, 49.6, 57, 58, C.woodD);
+      } else if (pr === 'stairs') {
+        for (let i = 0; i < 4; i++) { const x = 36 + i * 6, y = 52.5 - i * 5.5; rect(x, y, 64, y + 1.2, C.stone); rect(x, y + 1.2, 64, 58, C.stoneD); }
       } else if (pr === 'desk') {
         rect(40, 40.6, 62, 43, C.wood); rect(41.5, 43, 43.2, 58, C.woodD); rect(57, 43, 58.7, 58, C.woodD);
       } else if (pr === 'door') {

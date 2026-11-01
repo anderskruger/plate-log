@@ -4,6 +4,7 @@
    chime keep working while the phone is locked and this page isn't running. To change quests, tell Claude. */
 
 // amount = base + step per level above 1, capped at max. kind: reps or seconds; each: per arm / per side.
+// where: 'both' for Home and Office mode, 'office' for Office mode only; without it, Home mode only.
 const QUESTS = [
   { id: 'pushups', cat: 'body', name: 'Push-ups', quest: 'Raise the Rampart', kind: 'reps', base: 8, step: 1, max: 25, how: 'Body in one straight line. Knees down is fine.' },
   { id: 'situps', cat: 'body', name: 'Sit-ups', quest: 'Core of the Mountain', kind: 'reps', base: 12, step: 1, max: 30, how: 'Knees bent. Curl up with your stomach, not your neck.' },
@@ -16,23 +17,39 @@ const QUESTS = [
   { id: 'rows', cat: 'db', name: 'One-arm rows', quest: 'Row to the Far Shore', kind: 'reps', each: 'arm', base: 10, step: 1, max: 15, how: 'Free hand on the desk, flat back, pull the dumbbell to your hip.' },
   { id: 'press', cat: 'db', name: 'One-arm press', quest: 'Lift the Banner', kind: 'reps', each: 'arm', base: 8, step: 1, max: 12, how: 'From your shoulder to a straight arm overhead, ribs down.' },
   { id: 'rdl', cat: 'db', name: 'Dumbbell deadlift', quest: 'Bow to the Dawn', kind: 'reps', base: 10, step: 1, max: 20, how: 'Dumbbell in both hands, soft knees, hinge at the hips, flat back.' },
-  { id: 'neck', cat: 'stretch', name: 'Neck stretch', quest: 'Loosen the Helm', kind: 'time', each: 'side', base: 20, step: 0, max: 20, how: 'Ear toward your shoulder, other hand reaching down.' },
-  { id: 'wrists', cat: 'stretch', name: 'Wrist stretch', quest: 'Rest the Mouse Hand', kind: 'time', each: 'side', base: 20, step: 0, max: 20, how: 'Arm straight, gently pull your fingers back, then down.' },
-  { id: 'chest', cat: 'stretch', name: 'Chest opener', quest: 'Open the Gates', kind: 'time', base: 30, step: 5, max: 45, how: 'Forearms on a door frame, step through.' },
+  { id: 'neck', where: 'both', cat: 'stretch', name: 'Neck stretch', quest: 'Loosen the Helm', kind: 'time', each: 'side', base: 20, step: 0, max: 20, how: 'Ear toward your shoulder, other hand reaching down.' },
+  { id: 'wrists', where: 'both', cat: 'stretch', name: 'Wrist stretch', quest: 'Rest the Mouse Hand', kind: 'time', each: 'side', base: 20, step: 0, max: 20, how: 'Arm straight, gently pull your fingers back, then down.' },
+  { id: 'chest', where: 'both', cat: 'stretch', name: 'Chest opener', quest: 'Open the Gates', kind: 'time', base: 30, step: 5, max: 45, how: 'Forearms on a door frame, step through.' },
   { id: 'hips', cat: 'stretch', name: 'Hip flexor stretch', quest: 'Unbind the Saddle', kind: 'time', each: 'side', base: 20, step: 5, max: 30, how: 'Half-kneeling lunge, squeeze the back glute.' },
-  { id: 'twist', cat: 'stretch', name: 'Seated twist', quest: 'Turn of the Tide', kind: 'time', each: 'side', base: 20, step: 0, max: 20, how: 'Sit tall, turn from the ribs, hold the chair.' },
+  { id: 'twist', where: 'both', cat: 'stretch', name: 'Seated twist', quest: 'Turn of the Tide', kind: 'time', each: 'side', base: 20, step: 0, max: 20, how: 'Sit tall, turn from the ribs, hold the chair.' },
   { id: 'catcow', cat: 'stretch', name: 'Cat-cow', quest: 'The Restless Back', kind: 'reps', base: 8, step: 1, max: 12, how: 'On hands and knees, round your back, then arch it.' },
-  { id: 'walk', cat: 'break', name: 'Walk around', quest: 'Patrol the Keep', kind: 'time', base: 45, step: 5, max: 60, how: 'Stand up and walk. Refill your water.' },
-  { id: 'eyes', cat: 'break', name: 'Look far away', quest: 'Watch the Horizon', kind: 'time', base: 20, step: 0, max: 20, how: 'Eyes off the screen, then roll your shoulders.' },
+  { id: 'walk', where: 'both', cat: 'break', name: 'Walk around', quest: 'Patrol the Keep', kind: 'time', base: 45, step: 5, max: 60, how: 'Stand up and walk. Refill your water.' },
+  { id: 'shoulders', where: 'both', cat: 'stretch', name: 'Shoulder rolls', quest: 'Shrug Off the Pauldrons', kind: 'reps', each: 'way', base: 10, step: 1, max: 15, how: 'Slow, big circles. Backward first, then forward.' },
+  { id: 'chintuck', where: 'both', cat: 'stretch', name: 'Chin tucks', quest: 'Draw In the Visor', kind: 'reps', base: 8, step: 1, max: 12, how: 'Pull your chin straight back and hold for 3 seconds.' },
+  { id: 'quad', where: 'both', cat: 'stretch', name: 'Standing quad stretch', quest: 'Kick the Stirrup', kind: 'time', each: 'side', base: 20, step: 5, max: 30, how: 'One hand on a chair, pull your heel to your glute, knees together.' },
+  { id: 'hamstring', where: 'both', cat: 'stretch', name: 'Standing hamstring stretch', quest: 'Bow to the King', kind: 'time', each: 'side', base: 20, step: 5, max: 30, how: 'Heel forward, toes up, hinge forward with a flat back.' },
+  { id: 'figure4', where: 'both', cat: 'stretch', name: 'Figure-four stretch', quest: 'Rest the Rider', kind: 'time', each: 'side', base: 20, step: 5, max: 30, how: 'Seated, ankle on the other knee. Sit tall and lean forward.' },
+  { id: 'upperback', where: 'both', cat: 'stretch', name: 'Upper back stretch', quest: 'Shield Wall', kind: 'time', base: 20, step: 5, max: 30, how: 'Clasp your hands in front, push them away, round your upper back.' },
+  { id: 'sidereach', where: 'both', cat: 'stretch', name: 'Overhead side reach', quest: 'Reach for the Banner', kind: 'time', each: 'side', base: 15, step: 5, max: 25, how: 'Arms up, lean slowly to one side, then the other.' },
+  { id: 'prayer', where: 'both', cat: 'stretch', name: 'Prayer stretch', quest: 'Hands of the Monk', kind: 'time', base: 20, step: 5, max: 30, how: 'Palms together at your chest, lower your hands until your forearms stretch.' },
+  { id: 'hipstand', where: 'office', cat: 'stretch', name: 'Standing hip flexor stretch', quest: 'Unbind the Saddle', kind: 'time', each: 'side', base: 20, step: 5, max: 30, how: 'Staggered stance, tuck your hips under, squeeze the back glute.' },
+  { id: 'catcowseat', where: 'office', cat: 'stretch', name: 'Seated cat-cow', quest: 'The Restless Back', kind: 'reps', base: 8, step: 1, max: 12, how: 'Hands on your knees. Round your back, then arch it.' },
+  { id: 'calves', where: 'office', cat: 'move', name: 'Calf raises', quest: 'Tiptoe Through the Crypt', kind: 'reps', base: 15, step: 2, max: 30, how: 'Up on your toes, slowly down. A chair for balance.' },
+  { id: 'stairs', where: 'office', cat: 'move', name: 'Take the stairs', quest: 'Climb the Tower', kind: 'time', base: 60, step: 15, max: 120, how: 'Up a floor and back down, at a steady pace.' },
+  { id: 'deskpush', where: 'office', cat: 'move', name: 'Desk push-ups', quest: 'Lean on the Battlements', kind: 'reps', base: 10, step: 1, max: 20, how: 'Hands on the desk edge, body straight, slow on the way down.' },
+  { id: 'eyes', where: 'both', cat: 'break', name: 'Look far away', quest: 'Watch the Horizon', kind: 'time', base: 20, step: 0, max: 20, how: 'Eyes off the screen, then roll your shoulders.' },
 ];
-const Q_CAT_WEIGHT = { body: 4, db: 3, stretch: 3, break: 1 };
-const Q_CAT_XP = { body: 30, db: 30, stretch: 20, break: 15 };
+const Q_CAT_WEIGHT = { body: 4, db: 3, stretch: 3, move: 2, break: 1 };
+const Q_CAT_XP = { body: 30, db: 30, stretch: 20, move: 25, break: 15 };
 const Q_ELITE_CHANCE = 1 / 6;                    // an elite quest: half as much again, double XP
 const Q_SWIFT_MS = 5 * 60000, Q_SWIFT_XP = 10;   // turned in within 5 minutes of arriving
 const Q_AHEAD = 10;                              // quests planned ahead (the lock-screen card can chime for 10)
 const Q_INTERVALS = [15, 30, 45, 60];
 
 const qEx = id => QUESTS.find(e => e.id === id);
+// Home mode: everything you can do at home while gaming. Office mode: stretches, standing and walking.
+const qInMode = (e, mode) => mode === 'office' ? !!e.where : e.where !== 'office';
+const qLabel = mode => mode === 'office' ? 'Office quests' : 'Quest mode';
 function qAmount(ex, level, elite) {
   const n = Math.min(ex.max, ex.base + ex.step * (level - 1));
   if (!elite) return n;
@@ -76,9 +93,10 @@ function qSpriteRun() {
 function qPick(exclude = []) {
   const Q = S.quest;
   const recent = [...Q.done, ...Q.waiting, ...Q.plan].map(q => q.exId).slice(-4);
-  let pool = QUESTS.filter(e => !recent.includes(e.id) && !exclude.includes(e.id) && e.cat !== Q.lastCat);
-  if (!pool.length) pool = QUESTS.filter(e => !exclude.includes(e.id));
-  const w = e => Q_CAT_WEIGHT[e.cat] / QUESTS.filter(x => x.cat === e.cat).length;
+  const all = QUESTS.filter(e => qInMode(e, Q.mode));
+  let pool = all.filter(e => !recent.includes(e.id) && !exclude.includes(e.id) && e.cat !== Q.lastCat);
+  if (!pool.length) pool = all.filter(e => !exclude.includes(e.id));
+  const w = e => Q_CAT_WEIGHT[e.cat] / all.filter(x => x.cat === e.cat).length;
   let r = Math.random() * pool.reduce((s, e) => s + w(e), 0);
   for (const e of pool) { r -= w(e); if (r <= 0) return e; }
   return pool[pool.length - 1];
@@ -93,12 +111,13 @@ function qTopUp() {
   const Q = S.quest;
   while (Q.plan.length < Q_AHEAD) { Q.lastAt += Q.interval * 60000; Q.plan.push(qMake(Q.lastAt)); }
 }
-// at: when the session began (the WoW watcher on the PC sends when the game started); now by default
-function qStart(at) {
+// at: when the session began (the WoW watcher on the PC sends when the game started); now by default.
+// mode: 'home' or 'office'; the mode picked on the Quests screen by default.
+function qStart(at, mode) {
   if (S.active) { toast('Finish your workout first'); return; }
   ensureAudio();
   const now = at || Date.now();
-  S.quest = { start: now, interval: S.questInterval || 30, lastAt: now, seq: 0, plan: [], waiting: [], done: [], xp: 0, from: qHero().level, lastCat: null };
+  S.quest = { start: now, mode: mode || S.questMode || 'home', interval: S.questInterval || 30, lastAt: now, seq: 0, plan: [], waiting: [], done: [], xp: 0, from: qHero().level, lastCat: null };
   qTopUp(); save();
   if (native) native.LocalNotifications.requestPermissions().catch(() => {});   // Android asks once, for the lock-screen card
   qPlay('start');
@@ -180,7 +199,7 @@ function qSwap(id) {
 }
 function qEnd() {
   const Q = S.quest, now = Date.now();
-  const entry = { id: 'q' + Q.start, start: Q.start, end: now, interval: Q.interval, done: Q.done.length, missed: Q.waiting.length, xp: Q.xp, from: Q.from, to: qHero().level,
+  const entry = { id: 'q' + Q.start, start: Q.start, end: now, mode: Q.mode || 'home', interval: Q.interval, done: Q.done.length, missed: Q.waiting.length, xp: Q.xp, from: Q.from, to: qHero().level,
     quests: Q.done.map(d => ({ exId: d.exId, amount: d.amount, at: d.at, gain: d.gain, elite: d.elite })) };
   (S.questLog ||= []).push(entry);
   S.quest = null; qTimer = null; sheet = null;
@@ -204,7 +223,7 @@ function qOpenLink(url) {
   if (m[1] === 'start') {
     if (S.quest) { view.screen = 'quests'; render(); toast('Quest mode is already running'); }
     else if (S.active) toast('Finish your workout first');
-    else qStart(Math.min(at, Date.now()));
+    else qStart(Math.min(at, Date.now()), 'home');
   } else if (S.quest && S.quest.start < at) qEnd();
 }
 
@@ -215,8 +234,8 @@ function qCardState() {
   const step = q => ({ id: 'quest-' + q.id, title: qEx(q.exId).quest + (q.elite ? ' · Elite' : ''), text: qTask(q), sound: 'questcomplete', data: { kind: 'quest', id: q.id }, at: q.at });
   return {
     steps: [...Q.waiting, ...Q.plan].map(step),
-    since: Q.start, label: 'Quest mode', restLabel: 'Quest mode', restart: false,
-    button: 'Done', waitTitle: 'Next quest', waitText: 'arrives at', doneTitle: 'Quest mode', doneText: '',
+    since: Q.start, label: qLabel(Q.mode), restLabel: qLabel(Q.mode), restart: false,
+    button: 'Done', waitTitle: 'Next quest', waitText: 'arrives at', doneTitle: qLabel(Q.mode), doneText: '',
     alerts: Q.plan.slice(0, Q_AHEAD).map(q => ({ after: Math.round((q.at - Q.start) / 1000), label: 'New quest!',
       title: (q.elite ? 'Elite quest: ' : 'New quest: ') + qEx(q.exId).quest, channel: 'quest-new', channelName: 'New quest', sound: 'quest_new' })),
     volume: level(), silent: !S.sound,
@@ -405,7 +424,7 @@ function qResumeBanner() {
   if (!S.quest) return '';
   const n = S.quest.waiting.length;
   return `<button class="resume qm-resume" data-act="quests">${qMarker('!', 26)}
-    <span class="grow"><b>Quest mode running</b><br><span class="meta">${n ? n + ' quest' + (n === 1 ? '' : 's') + ' waiting' : 'Started ' + fmtTime(S.quest.start)} · tap to return</span></span>
+    <span class="grow"><b>${qLabel(S.quest.mode)} running</b><br><span class="meta">${n ? n + ' quest' + (n === 1 ? '' : 's') + ' waiting' : 'Started ' + fmtTime(S.quest.start)} · tap to return</span></span>
     <span class="chev">${ICON.chev}</span></button>`;
 }
 
@@ -465,18 +484,19 @@ function qScroll(q) {
 
 function qBoard() {
   const last = (S.questLog || [])[(S.questLog || []).length - 1];
-  const iv = S.questInterval || 30;
+  const iv = S.questInterval || 30, mode = S.questMode || 'home';
   return `<div class="qm">
   <div class="topbar"><div class="brand">Quests</div></div>
   <section class="qm-board">
     ${qMarker('!', 76, 'bob')}
     <h2 class="qm-caps">Quest Mode</h2>
-    <p>A quest every ${iv} min while you play</p>
+    <div class="qm-seg two" role="group" aria-label="Where you are">${[['home', 'Home'], ['office', 'Office']].map(([m, l]) => `<button class="${mode === m ? 'on' : ''}" data-act="q-mode" data-m="${m}" aria-pressed="${mode === m}">${l}</button>`).join('')}</div>
+    <p>${mode === 'office' ? `Stretches and short walks every ${iv} min at your desk` : `A quest every ${iv} min while you play`}</p>
     <div class="qm-seg" role="group" aria-label="Quest interval">${Q_INTERVALS.map(m => `<button class="${iv === m ? 'on' : ''}" data-act="q-interval" data-m="${m}" aria-pressed="${iv === m}">${m} min</button>`).join('')}</div>
     ${qHeroHtml()}
     <button class="qm-btn qm-gold" data-act="q-start" ${S.active ? 'disabled' : ''}>${S.active ? 'Finish your workout first' : 'Start quest mode'}</button>
   </section>
-  ${last ? `<p class="meta qm-last">Last session ${fmtDate(last.start)} · ${last.done} quest${last.done === 1 ? '' : 's'} · +${last.xp} XP</p>` : ''}
+  ${last ? `<p class="meta qm-last">Last session${last.mode === 'office' ? ' (office)' : ''} ${fmtDate(last.start)} · ${last.done} quest${last.done === 1 ? '' : 's'} · +${last.xp} XP</p>` : ''}
   </div>`;
 }
 
@@ -505,7 +525,7 @@ function qSheetEnd() {
 function qSheetDetail() {
   const e = (S.questLog || []).find(x => x.id === sheet.id); if (!e) return '';
   return `
-  <div class="sheet-head" style="justify-content:flex-start;align-items:center">${qMarker('!', 34)}<div><h2>Quest mode</h2><div class="meta">${fmtDate(e.start)} · ${fmtTime(e.start)}–${fmtTime(e.end)} · ${fmtDur(e.end - e.start)}</div></div></div>
+  <div class="sheet-head" style="justify-content:flex-start;align-items:center">${qMarker('!', 34)}<div><h2>${qLabel(e.mode)}</h2><div class="meta">${fmtDate(e.start)} · ${fmtTime(e.start)}–${fmtTime(e.end)} · ${fmtDur(e.end - e.start)}</div></div></div>
   <div class="qm-tiles">
     <div class="qm-tile"><b class="num">${e.done}</b><span>Quests</span></div>
     <div class="qm-tile"><b class="num" style="color:var(--q-gold)">+${e.xp}</b><span>XP</span></div>
@@ -545,6 +565,7 @@ function qHandle(act, t) {
     case 'quests': view.screen = 'quests'; render(); scrollTo(0, 0); return true;
     case 'q-start': qStart(); return true;
     case 'q-interval': S.questInterval = +t.dataset.m; save(); render(); return true;
+    case 'q-mode': S.questMode = t.dataset.m; save(); render(); return true;
     case 'q-sound': S.sound = !S.sound; save(); if (S.sound) { ensureAudio(); qPlay('tick'); } render(); return true;
     case 'q-complete': qComplete(id); return true;
     case 'q-begin': ensureAudio(); qTimer = { id, start: performance.now(), total: qSecs(S.quest.waiting.find(x => x.id === id)), sided: false, ticked: 0 }; render(); return true;
