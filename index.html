@@ -720,26 +720,38 @@ document.addEventListener('change', e => {
   if (e.target.id === 'volume') playStage('one', true);   // let you hear the new level
   if (e.target.id === 'backup-file' && e.target.files.length) importBackup(e.target.files[0]);
 });
-// When the page runs from your own PC (node serve.js), it reads the project's sounds/ folder directly.
-// The published page has no such folder, so this quietly does nothing there.
-async function loadFolderSounds() {
-  try {
-    const r = await fetch('sounds/manifest.json', { cache: 'no-store' }); if (!r.ok) return;
-    const names = await r.json(); let n = 0;
-    await Promise.all(names.map(async name => {
-      const call = matchCall(name); if (!call) return;
-      const res = await fetch('sounds/' + encodeURIComponent(name)); if (!res.ok) return;
-      const file = new File([await res.blob()], name);
-      addTake(call.id, takeKey(call.id, file), file); n++;
-    }));
-    if (!n) return;
-    diag.load = `loaded ${n} files from the sounds folder`;
-    toast(`Loaded ${n} announcer sounds from the sounds folder`);
-    if (sheet && sheet.type === 'sounds') renderSheet();
-  } catch (e) {}
+// The announcer clips aren't part of this app. On first launch the phone downloads them straight from
+// the public repo below and keeps them in its own storage, so they work offline afterwards.
+const SOUND_REPO = 'https://github.com/unknown-gd/unreal-tournament-killstreak-sounds';
+const SOUND_SOURCE = 'https://raw.githubusercontent.com/unknown-gd/unreal-tournament-killstreak-sounds/main/sound/killstreak-sounds/';
+const SOURCE_FILES = [
+  'prepareforbattle', 'preparetofight', 'pickupyourweaponsandfight',
+  'firstblood', 'firstblood2', 'firstblood3', 'firstblood4', 'doublekill', 'doublekill2', 'doublekill3', 'triplekill',
+  'multikill', 'multikill2', 'rampage', 'rampage2', 'killingspree', 'killingspree2', 'dominating', 'dominating2',
+  'unstoppable', 'unstoppable2', 'megakill', 'megakill2', 'ultrakill', 'ultrakill2', 'monsterkill', 'monsterkill2',
+  'holyshit', 'godlike', 'godlike2', 'headshot', 'headshot2', 'headshot3', 'headshot4',
+  'flawlessvictory', 'impressive', 'excellent', 'outstanding',
+].map(n => n + '.mp3');
+async function downloadSounds(force) {
+  if (S.soundsFetched && !force) return;   // done once; files you remove stay removed
+  const have = new Set(Object.values(custom).flat().map(t => t.name));
+  const missing = SOURCE_FILES.filter(n => !have.has(n));
+  const toSave = []; let failed = 0;
+  await Promise.all(missing.map(async name => {
+    try {
+      const r = await fetch(SOUND_SOURCE + name); if (!r.ok) throw new Error(r.status);
+      const file = new File([await r.blob()], name, { type: 'audio/mpeg' });
+      const call = matchCall(name);
+      const key = takeKey(call.id, file);
+      addTake(call.id, key, file); toSave.push([key, file]);
+    } catch (e) { failed++; }
+  }));
+  if (!failed) { S.soundsFetched = true; save(); }
+  if (toSave.length) { saveTakes(toSave); toast(`Downloaded ${toSave.length} announcer sounds`); }
+  diag.load = failed ? `downloaded ${toSave.length}, ${failed} failed (no signal?). Will retry next launch.` : `all ${SOURCE_FILES.length} announcer sounds on this phone`;
+  if (sheet && sheet.type === 'sounds') renderSheet();
 }
-loadSounds();
-loadFolderSounds();
+loadSounds().then(() => downloadSounds());
 
 let wakeLock = null;
 async function keepAwake() {
@@ -1256,7 +1268,8 @@ function sheetSounds() {
       ${custom[c.id] ? `<button class="link-btn" data-act="remove-sound" data-call="${c.id}" aria-label="Remove ${c.name} files">✕</button>` : ''}
     </div>`).join('')}
   </div>
-  <p class="sample-note">Your files stay on this phone, in this browser. They're never uploaded. The rest-clock beeps are separate and still built in.</p>
+  <p class="sample-note">The clips download to this phone the first time the app opens, from <a href="${SOUND_REPO}" target="_blank" rel="noopener" style="color:var(--dim)">this GitHub repo</a>, and then work offline. Files you add yourself stay on this phone too. The rest-clock beeps are built in.</p>
+  <button class="btn btn-ghost btn-block" data-act="redownload">Download the clips again</button>
   <div class="diag num">
     <b>Diagnostics · ${BUILD}</b>
     <span>Last pick: ${esc(diag.pick)}</span>
@@ -1320,6 +1333,7 @@ document.addEventListener('click', e => {
     case 'export': exportBackup(); break;
     case 'toggle-announcer': S.announcer = S.announcer === false; save(); renderSheet(); toast(S.announcer ? 'Announcer on' : 'Announcer off'); break;
     case 'sounds': sheet = { type: 'sounds' }; renderSheet(); break;
+    case 'redownload': toast('Downloading…'); downloadSounds(true); break;
     case 'remove-sound': removeSound(t.dataset.call).then(renderSheet); break;
     case 'hear': { const was = [S.sound, S.announcer]; S.sound = true; S.announcer = true; announce(t.dataset.t, GOLD.includes(t.dataset.t)); [S.sound, S.announcer] = was; if (sheet && sheet.type === 'sounds') renderSheet(); break; }
     case 'reset': if (sheet.armed) { try { localStorage.removeItem(KEY); } catch (err) {} S = fresh(); save(); sheet = null; view = { screen: 'home', month: null, selDay: null }; render(); toast('All workout data deleted'); } else { sheet.armed = true; renderSheet(); } break;
