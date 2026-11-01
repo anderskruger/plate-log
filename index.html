@@ -613,7 +613,7 @@ const CALLS = [
   return { name, id, aliases: [id, ...more] };
 });
 const custom = {};          // id -> [{ key, name, buf, err }]; several takes of one callout rotate at random
-const BUILD = 'v1';
+const BUILD = 'v2';
 const diag = { pick: 'no files picked yet', play: 'nothing played yet', load: 'checking saved files…' };   // shown on the sounds screen
 let soundsSaved = true;     // false when this browser won't store files
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -652,7 +652,7 @@ function addTake(id, key, file) {
   const list = custom[id] ||= [];
   const old = list.findIndex(t => t.key === key);   // same file picked again replaces itself
   if (old >= 0) list.splice(old, 1);
-  const take = { key, name: file.name || 'your file', buf: null, err: null };
+  const take = { key, name: file.name || 'your file', buf: null, err: null, file };   // file: the original bytes, for the lock-screen card
   list.push(take);
   const ctx = audioCtx();
   if (!ctx) { take.err = 'no Web Audio'; return; }
@@ -667,11 +667,13 @@ async function saveTakes(items) {
   try { await dbDo('readwrite', st => { items.forEach(([key, file]) => st.put(file, key)); }); soundsSaved = true; }
   catch (e) { soundsSaved = false; }
   if (sheet && sheet.type === 'sounds') renderSheet();
+  cacheCardSounds();
 }
 async function removeSound(id) {
   const list = custom[id] || [];
   delete custom[id];
   try { await dbDo('readwrite', st => { list.forEach(t => st.delete(t.key)); }); } catch (e) {}
+  cacheCardSounds();
 }
 // "First_Blood.wav", "firstblood.mp3", "Head Shot.ogg" all match by name
 function matchCall(fileName) {
@@ -760,7 +762,7 @@ async function downloadSounds(force) {
   diag.load = failed ? `downloaded ${toSave.length}, ${failed} failed (no signal?). Will retry next launch.` : `all ${SOURCE_FILES.length} announcer sounds on this phone`;
   if (sheet && sheet.type === 'sounds') renderSheet();
 }
-loadSounds().then(() => downloadSounds());
+loadSounds().then(() => downloadSounds()).then(() => cacheCardSounds());
 
 /* ---------- inside the Plate Log Android app (app-shell repo): native extras ----------
    In a normal browser `native` is null and everything below falls back to the web behaviour. */
@@ -800,13 +802,105 @@ async function nativeSetup() {
       importance: 5, sound: 'rest_' + s.sound, vibration: true, visibility: 1,
     });
   } catch (e) {}
-  native.App.addListener('pause', scheduleRestAlerts);
-  native.App.addListener('resume', () => { cancelRestAlerts(); if (S.active) keepAwake(); });
+  native.App.addListener('pause', () => card ? syncCard(true) : scheduleRestAlerts());
+  native.App.addListener('resume', () => { cancelRestAlerts(); takeCardSets(); if (S.active) keepAwake(); });
+  if (card) { card.addListener('step', () => takeCardSets()); takeCardSets().then(() => syncCard()); }
   native.App.addListener('backButton', () => {
     if (sheet) { sheet = null; renderSheet(); }
     else if (view.screen !== 'home') { view.screen = 'home'; render(); scrollTo(0, 0); }   // a running workout keeps going
     else native.App.minimizeApp();
   });
+}
+
+/* The lock-screen card (app-shell build 2+): a rest timer and a Log set button that work without unlocking.
+   Android keeps the card, its button and the rest beeps going on its own; sets logged there are handed back
+   with take() and applied here when the page runs again. */
+const card = native && native.Session ? native.Session : null;
+// The sets still to do, in the order Log set takes them (the one on screen, the rest of its exercise,
+// then the first unfinished set of the workout), each with the callout logging it here would play.
+function upcomingSets() {
+  const a = S.active; const w = sessionWorkout();
+  const sets = {}; w.exercises.forEach(ex => { sets[ex.id] = a.sets[ex.id].map(s => ({ ...s })); });
+  const firstOpen = () => { for (const ex of w.exercises) { const i = sets[ex.id].findIndex(s => !s.done); if (i >= 0) return { exId: ex.id, i }; } return null; };
+  let cur = focus && sets[focus.exId] && sets[focus.exId][focus.i] && !sets[focus.exId][focus.i].done ? { exId: focus.exId, i: focus.i } : firstOpen();
+  if (cur && focus && cur.exId === focus.exId && cur.i === focus.i) {   // what the wheel shows, even if not applied yet
+    sets[cur.exId].forEach((x, j) => { if (j >= cur.i && !x.done) x.weight = focus.weight; });
+    sets[cur.exId][cur.i].reps = focus.reps;
+  }
+  let doneInWorkout = Object.values(sets).flat().filter(s => s.done).length;
+  const out = [];
+  while (cur) {
+    const list = sets[cur.exId]; const s = list[cur.i];
+    s.done = true; doneInWorkout++;
+    const prev = (S.last[cur.exId] || [])[cur.i];
+    const call = setCall({
+      doneInWorkout,
+      doneInExercise: list.filter(x => x.done).length,
+      exerciseFinished: list.every(x => x.done),
+      exercisesFinished: w.exercises.filter(e => sets[e.id].every(x => x.done)).length,
+      exerciseCount: w.exercises.length,
+      beatLast: !!prev && s.weight > prev.weight,
+    });
+    out.push({
+      id: cur.exId + ':' + cur.i,
+      title: exById(w, cur.exId).name,
+      text: `${fmtWU(s.weight)} × ${s.reps} · set ${cur.i + 1} of ${list.length}`,
+      sound: call && S.announcer !== false ? CALLS.find(c => c.name === call).id : '',
+      data: { exId: cur.exId, i: cur.i, weight: s.weight, reps: s.reps },
+    });
+    const j = list.findIndex(x => !x.done);
+    cur = j >= 0 ? { exId: cur.exId, i: j } : firstOpen();
+  }
+  return out;
+}
+let cardSent = '';
+function syncCard(now) {
+  if (!card) return;
+  clearTimeout(syncCard.t);
+  if (!now) { syncCard.t = setTimeout(() => syncCard(true), 60); return; }
+  const a = S.active;
+  if (!a) { if (cardSent) { cardSent = ''; card.hide().catch(() => {}); } return; }
+  const since = a.lastLogAt || 0; const sec = (Date.now() - since) / 1000;
+  let stage = null; STAGES.forEach(s => { if (since && sec >= s.t) stage = s; });
+  const st = {
+    steps: upcomingSets(),
+    since, label: stage ? stage.label : 'Resting', restLabel: 'Resting',
+    button: 'Log set', doneTitle: 'All sets done', doneText: 'Open Plate Log to finish',
+    alerts: STAGES.map(s => ({ after: s.t, label: s.label, title: `Rest ${fmtClock(s.t * 1000)} · ${s.label}`,
+      channel: 'rest-' + s.sound, channelName: 'Rest ' + fmtClock(s.t * 1000), sound: 'rest_' + s.sound })),
+    volume: level(), silent: !S.sound,
+  };
+  const json = JSON.stringify(st);
+  if (json === cardSent) return;
+  cardSent = json;
+  card.show(st).catch(() => {});
+}
+let taking = Promise.resolve();
+function takeCardSets() {
+  if (!card) return taking;
+  return taking = taking.then(async () => {
+    let r; try { r = await card.take(); } catch (e) { return; }
+    const evs = ((r && r.events) || []).sort((x, y) => x.at - y.at);
+    const a = S.active; if (!a || !evs.length) return;
+    let n = 0;
+    evs.forEach(ev => {
+      const d = ev.data || {}; const s = a.sets[d.exId] && a.sets[d.exId][d.i];
+      if (s && !s.done) { logSet(d.exId, d.i, d.weight, d.reps, { at: ev.at, quiet: true }); n++; }
+    });
+    if (n) toast(`${n} set${n === 1 ? '' : 's'} logged from the lock screen`);
+  });
+}
+// The card plays the announcer itself, so it gets its own copy of the clips (on this phone only).
+const cardName = n => n.replace(/[^A-Za-z0-9._-]/g, '_');
+const toBase64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+async function cacheCardSounds() {
+  if (!card) return;
+  try {
+    const have = new Set(((await card.listSounds()) || {}).sounds || []);
+    const takes = CALLS.flatMap(c => (custom[c.id] || []).filter(t => t.file).map(t => ({ group: c.id, name: cardName(t.name), file: t.file })));
+    for (const t of takes) if (!have.has(t.group + '/' + t.name)) await card.cacheSound({ group: t.group, name: t.name, data: await toBase64(t.file) });
+    if (takes.length) await card.pruneSounds({ keep: takes.map(t => t.group + '/' + t.name) });
+  } catch (e) {}
 }
 nativeSetup();
 
@@ -816,7 +910,7 @@ async function keepAwake() {
   try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
 }
 function allowSleep() {
-  cancelRestAlerts();
+  cancelRestAlerts(); syncCard(true);
   if (native) { try { native.KeepAwake.allowSleep(); } catch (e) {} }
   try { wakeLock && wakeLock.release(); } catch (e) {}
 }
@@ -873,9 +967,10 @@ function focusExercise(exId) {
   const list = S.active.sets[exId]; const j = list.findIndex(s => !s.done);
   setFocus(exId, j >= 0 ? j : list.length - 1);
 }
-function logSet(exId, i, weight, reps) {
+// opt.at / opt.quiet: a set logged earlier from the lock-screen card, which already played its callout
+function logSet(exId, i, weight, reps, opt = {}) {
   const a = S.active; const w = sessionWorkout(); const list = a.sets[exId]; const s = list[i];
-  const now = Date.now();
+  const now = opt.at || Date.now();
   if (s.done) {                       // editing an already logged set
     s.weight = weight; s.reps = reps;
     save(); setFocus(exId, i); render(); toast('Set ' + (i + 1) + ' updated');
@@ -903,6 +998,7 @@ function logSet(exId, i, weight, reps) {
     exerciseCount: w.exercises.length,
     beatLast: !!prev && weight > prev.weight,
   });
+  if (opt.quiet) return;
   if (call) announce(call, GOLD.includes(call));
   toast(!nxt ? 'All sets done. Tap Finish.' : nxt.exId !== exId ? exById(w, exId).name + ' done' : 'Set ' + (i + 1) + ' logged · rest clock started');
 }
@@ -1359,7 +1455,7 @@ function sheetSounds() {
     <span>Saved files: ${esc(diag.load)}</span>
     <span>Last callout: ${esc(diag.play)}</span>
     <span>Sounds ${S.sound ? 'on' : 'muted'} · audio engine ${audio ? audio.state : 'not started'}</span>
-    <span>Running in: ${native ? 'Plate Log Android app (lock-screen rest alerts on)' : 'browser'}</span>
+    <span>Running in: ${card ? 'Plate Log Android app (lock-screen card on)' : native ? 'Plate Log Android app, older version (reinstall for the lock-screen card)' : 'browser'}</span>
   </div>
   <button class="btn btn-ghost btn-block" data-act="settings">Back</button>`;
 }
@@ -1386,6 +1482,7 @@ function render() {
   app.innerHTML = { home: screenHome, preview: screenPreview, session: screenSession, summary: screenSummary, history: screenHistory }[view.screen]();
   if (view.screen === 'session' && S.active) bindWheel();
   renderDock(); renderSheet();
+  syncCard();
 }
 
 document.addEventListener('click', e => {
