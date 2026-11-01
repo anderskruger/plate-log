@@ -14,9 +14,17 @@ $topicFile = Join-Path $configDir 'ntfy-topic.txt'
 $appDir = Join-Path $env:LOCALAPPDATA 'PlateLog'
 $watcher = Join-Path $appDir 'wow-watcher.ps1'
 
+# Stops a running watcher: PowerShell processes running the installed copy. Matching the full path (and never this
+# process) matters: this script's own name, install-wow-watcher.ps1, also contains "wow-watcher.ps1".
+function Stop-Watcher {
+  Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+    Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains($watcher) } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
+
 if ($Remove) {
   Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | ForEach-Object { Stop-ScheduledTask -TaskName $taskName; Unregister-ScheduledTask -TaskName $taskName -Confirm:$false }
-  Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'wow-watcher\.ps1' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Stop-Watcher
   Remove-Item $appDir -Recurse -Force -ErrorAction SilentlyContinue
   Write-Output "Removed the task and $appDir. Your channel name is still in $topicFile (delete it if you like)."
   exit
@@ -36,7 +44,7 @@ Copy-Item (Join-Path $PSScriptRoot 'wow-watcher.ps1') $watcher -Force
 
 # stop a watcher that's already running (an earlier install), so the new one takes over
 Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | ForEach-Object { Stop-ScheduledTask -TaskName $taskName }
-Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'wow-watcher\.ps1' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Stop-Watcher
 
 # conhost --headless: no window at all. (Windows 11 opens "-WindowStyle Hidden" PowerShell in a visible Windows
 # Terminal tab, and closing that tab stops the watcher.)
