@@ -73,10 +73,11 @@ function qTopUp() {
   const Q = S.quest;
   while (Q.plan.length < Q_AHEAD) { Q.lastAt += Q.interval * 60000; Q.plan.push(qMake(Q.lastAt)); }
 }
-function qStart() {
+// at: when the session began (the WoW watcher on the PC sends when the game started); now by default
+function qStart(at) {
   if (S.active) { toast('Finish your workout first'); return; }
   ensureAudio();
-  const now = Date.now();
+  const now = at || Date.now();
   S.quest = { start: now, interval: S.questInterval || 30, lastAt: now, seq: 0, plan: [], waiting: [], done: [], xp: 0, from: qHero().level, lastCat: null };
   qTopUp(); save();
   if (native) native.LocalNotifications.requestPermissions().catch(() => {});   // Android asks once, for the lock-screen card
@@ -168,6 +169,24 @@ function qEnd() {
   render(); scrollTo(0, 0);
 }
 setInterval(() => { if (S.quest) { qArrive(false); qTick(); } }, 500);
+
+/* ---------- links from the WoW watcher on the PC (tools/wow-watcher.ps1, via an ntfy notification) ----------
+   platelog://quest/start?at=<ms>  WoW started: start quest mode from that moment
+   platelog://quest/end?at=<ms>    WoW closed: end the session
+   platelog://quest/test?at=<ms>   the setup's test notification */
+function qOpenLink(url) {
+  const m = /^platelog:\/\/quest\/(start|end|test)(?:\?at=(\d+))?/.exec(url || ''); if (!m) return;
+  const at = +m[2] || Date.now();
+  if (at <= (S.linkAt || 0)) return;   // the same link again (Android hands it over each time the app reopens from it)
+  S.linkAt = at; save();
+  if (m[1] === 'test') { toast('Your PC can start quest mode'); return; }
+  if (Date.now() - at > 6 * 3600000) return;   // a notification left lying around
+  if (m[1] === 'start') {
+    if (S.quest) { view.screen = 'quests'; render(); toast('Quest mode is already running'); }
+    else if (S.active) toast('Finish your workout first');
+    else qStart(Math.min(at, Date.now()));
+  } else if (S.quest && S.quest.start < at) qEnd();
+}
 
 /* ---------- lock-screen card (app-shell build 3+: steps that open later) ---------- */
 function qCardOk() { return !!(card && card.info); }
