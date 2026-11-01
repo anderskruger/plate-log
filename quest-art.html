@@ -1,0 +1,368 @@
+<title>Quest Exercise Sprites</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+/* Layout: one column of style "shelves", each a row of four live sprites, then the sprite placed on a real quest scroll.
+   Single dark look on purpose: it matches Plate Log's gym-floor screens. */
+:root {
+  color-scheme: dark;
+  --floor: #14161b;      /* rubber gym floor, as in the app */
+  --raised: #1d2027;
+  --line: #313643;
+  --chalk: #eeeae1;
+  --dim: #999ba5;
+  --gold: #f6c744;
+  --parch: #ecdcb4;
+  --ink: #3a2914;
+  --seal: #9b2f25;
+  --font-display: "Big Shoulders Display", "Oswald", "Arial Narrow", sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-lore: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --font-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  --font-pixel: "Silkscreen", ui-monospace, "Consolas", monospace;
+}
+body { background: var(--floor); color: var(--chalk); font: 15px/1.55 var(--font-body); }
+.wrap { max-width: 880px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 34px; }
+
+header { display: grid; gap: 10px; }
+.eyebrow { font: 11px var(--font-pixel); letter-spacing: 0.08em; color: var(--gold); text-transform: uppercase; }
+h1 { font: 800 clamp(40px, 9vw, 64px)/0.95 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+.lede { max-width: 62ch; color: var(--dim); margin: 0; }
+.lede b { color: var(--chalk); font-weight: 600; }
+
+.shelf { display: grid; gap: 12px; }
+.shelf-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.shelf-head h2 { font: 400 26px/1 var(--font-caps); margin: 0; color: var(--chalk); }
+.res { font: 10px var(--font-pixel); color: var(--dim); letter-spacing: 0.06em; border: 1px solid var(--line); padding: 3px 6px 2px; border-radius: 3px; }
+.shelf-head p { flex-basis: 100%; margin: 0; color: var(--dim); max-width: 62ch; }
+.row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 620px) { .row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.tile { display: grid; gap: 8px; justify-items: center; }
+.stage { width: 100%; max-width: 100%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 6px; overflow: hidden; position: relative; }
+.stage canvas, .portrait canvas { width: 100%; aspect-ratio: 1; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+.tile figcaption { font: 500 13px var(--font-body); color: var(--dim); }
+
+/* style grounds */
+.st-sprite { background: linear-gradient(#1f2b40, #34496a); box-shadow: inset 0 0 0 1px #ffffff12; }
+.st-ink { background: radial-gradient(ellipse at 25% 20%, #f6ead0 0, transparent 55%), radial-gradient(ellipse at 80% 90%, #d8c18e 0, transparent 60%), var(--parch); box-shadow: inset 0 0 18px #8a6a4055; }
+.st-icon { background: radial-gradient(circle at 50% 40%, #3d3013, #15130c 75%); box-shadow: inset 0 0 0 2px #b8860f, inset 0 0 0 4px #3b2e10, inset 0 0 0 5px #f6c74455, inset 0 0 22px #000c; border-radius: 10px; }
+.st-icon canvas { width: 80%; }
+.st-lcd canvas { width: 88%; }
+.st-lcd { background: #9bbc0f; box-shadow: inset 0 0 0 6px #8bac0f, inset 0 0 0 7px #306230; }
+.st-lcd::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.35;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(100% / 28 - 1px), #8bac0f calc(100% / 28 - 1px) calc(100% / 28)),
+              repeating-linear-gradient(0deg, transparent 0 calc(100% / 28 - 1px), #8bac0f calc(100% / 28 - 1px) calc(100% / 28)); }
+
+/* the quest scroll preview */
+.preview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+@media (max-width: 620px) { .preview { grid-template-columns: minmax(0, 1fr); } }
+.preview h2 { font: 400 26px/1.1 var(--font-caps); margin: 0 0 8px; }
+.preview p { margin: 0 0 14px; color: var(--dim); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { font: 600 13px var(--font-body); color: var(--dim); background: #272b34; border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
+.seg button[aria-pressed="true"] { color: var(--gold); border-color: #6b5524; }
+.seg button:focus-visible, .scroll button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.scroll { position: relative; color: var(--ink); text-align: center; padding: 18px 20px 20px; border-radius: 4px; max-width: 320px; width: 100%; justify-self: center;
+  background: radial-gradient(ellipse at 20% 15%, #f6ead0 0, transparent 50%), radial-gradient(ellipse at 85% 90%, #d8c18e 0, transparent 55%), var(--parch);
+  box-shadow: 0 0 0 1px #c9b07a, 0 10px 30px #000a; }
+.scroll::before, .scroll::after { content: ""; position: absolute; left: -8px; right: -8px; height: 12px; border-radius: 6px; background: linear-gradient(#c9a868, #8a6a3a); box-shadow: 0 2px 4px #0006; }
+.scroll::before { top: -6px; } .scroll::after { bottom: -6px; }
+.scroll .portrait { width: 132px; height: 132px; margin: 6px auto 10px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; position: relative; }
+.scroll .kicker { font: 400 13px var(--font-caps); letter-spacing: 0.08em; color: #7a5f3a; }
+.scroll h3 { font: 400 32px/1 var(--font-caps); margin: 2px 0 2px; }
+.scroll .amount { font: 800 30px/1 var(--font-display); color: var(--seal); letter-spacing: 0.02em; }
+.scroll .how { font: italic 15px/1.4 var(--font-lore); margin: 8px 0 14px; color: var(--ink); }
+.scroll button { font: 400 19px var(--font-caps); letter-spacing: 0.06em; color: #f8e8c6; border: 0; border-radius: 6px; padding: 9px 22px 8px; background: linear-gradient(#b23a2e, #82261e); box-shadow: inset 0 1px 0 #d8685c, 0 3px 0 #551711; cursor: pointer; }
+
+.notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
+@media (max-width: 620px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes h3 { font: 600 13px var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); margin: 0 0 6px; }
+.notes ul { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap: 4px; }
+.notes li b { color: var(--chalk); font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Plate Log · Quest mode</div>
+    <h1>Quest exercise sprites</h1>
+    <p class="lede">I can't paint pictures or make photo-style images, but I can <b>draw pixel art with code</b>. Every figure on this page is drawn live from one small stick-figure rig, at 24 to 48 pixels, then scaled up. The same poses give four different looks, and they move.</p>
+  </header>
+
+  <section class="shelf" data-style="sprite">
+    <div class="shelf-head"><h2>Hero sprite</h2><span class="res">32 × 32 px</span>
+      <p>A little adventurer in a green tunic, outlined like a 16-bit game character. Colors can match your hero rank.</p></div>
+    <div class="row"></div>
+  </section>
+
+  <section class="shelf" data-style="ink">
+    <div class="shelf-head"><h2>Scroll ink</h2><span class="res">48 × 48 px</span>
+      <p>Brown ink straight on the parchment, so it looks drawn into the quest scroll itself.</p></div>
+    <div class="row"></div>
+  </section>
+
+  <section class="shelf" data-style="icon">
+    <div class="shelf-head"><h2>Ability icon</h2><span class="res">32 × 32 px</span>
+      <p>A gold figure in a framed square, like a skill on an action bar. Works well small, for History and the summary.</p></div>
+    <div class="row"></div>
+  </section>
+
+  <section class="shelf" data-style="lcd">
+    <div class="shelf-head"><h2>Pocket handheld</h2><span class="res">24 × 24 px</span>
+      <p>Four shades of green on a pixel-grid screen. The chunkiest and most retro of the four.</p></div>
+    <div class="row"></div>
+  </section>
+
+  <section class="preview">
+    <div>
+      <h2>On a quest scroll</h2>
+      <p>The picture would sit where the gold ! is today, and keep moving while the quest waits. Pick a look:</p>
+      <div class="seg" role="group" aria-label="Sprite style">
+        <button type="button" id="pick-sprite" data-pick="sprite" aria-pressed="true">Hero sprite</button>
+        <button type="button" id="pick-ink" data-pick="ink" aria-pressed="false">Scroll ink</button>
+        <button type="button" id="pick-icon" data-pick="icon" aria-pressed="false">Ability icon</button>
+        <button type="button" id="pick-lcd" data-pick="lcd" aria-pressed="false">Pocket handheld</button>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="portrait st-sprite" id="portrait"><canvas id="card-canvas"></canvas></div>
+      <div class="kicker">A new quest</div>
+      <h3>Push-ups</h3>
+      <div class="amount">12 reps</div>
+      <p class="how">Hands under your shoulders, body in one straight line. Lower your chest to a fist above the floor.</p>
+      <button type="button" id="card-done">Quest complete</button>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <h3>What this can do</h3>
+      <ul>
+        <li><b>All 19 quests</b> get a picture from the same rig: one pose pair each, a few lines of numbers.</li>
+        <li><b>No image files.</b> The art is drawn in the app, so it works offline and adds almost nothing to the download.</li>
+        <li><b>Original art</b>, so it's fine on the public site, like the quest sounds.</li>
+        <li>It can also show on the <b>lock-screen card</b> as a small still picture.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What it can't do</h3>
+      <ul>
+        <li><b>No painted or photo-style images.</b> I don't have an image generator here, only code.</li>
+        <li>Figures are seen <b>from the side</b>. Moves that only read from the front, like a side bend, need a second rig view.</li>
+        <li>At 24 px the face is a dot. Detail grows with the pixel size, which can go anywhere from 24 to 64.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+// One side-view rig (64 × 64 units, the 56-unit square VIEW is what's drawn, floor at y = 58, the figure faces right). A pose gives the torso angle, a head
+// tilt and, per limb, either two angles or a target for the hand/foot (two-bone IK). Angles: 0 points down,
+// 90 points right (forward), 180 points up.
+const FLOOR = 58, VIEW = { x: 4, y: 6, size: 56 };
+const LEN = { torso: 15, neck: 6, up: 9, fore: 8, thigh: 11, shin: 11, foot: 3.5 };
+const dir = a => [Math.sin(a * Math.PI / 180), Math.cos(a * Math.PI / 180)];
+const add = (p, q) => [p[0] + q[0], p[1] + q[1]];
+const sub = (p, q) => [p[0] - q[0], p[1] - q[1]];
+const mul = (p, k) => [p[0] * k, p[1] * k];
+const len = p => Math.hypot(p[0], p[1]);
+const angleOf = v => Math.atan2(v[0], v[1]) * 180 / Math.PI;
+
+function limb(root, spec, l1, l2) {
+  if (spec.a) { const j1 = add(root, mul(dir(spec.a[0]), l1)); return [j1, add(j1, mul(dir(spec.a[1]), l2))]; }
+  const v = sub(spec.to, root), d0 = len(v), u = mul(v, 1 / d0);
+  const d = Math.min(Math.max(d0, Math.abs(l1 - l2) + 0.01), l1 + l2 - 0.01);
+  const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  const perp = mul([-u[1], u[0]], spec.bend || 1);
+  return [add(add(root, mul(u, a)), mul(perp, h)), add(root, mul(u, d))];
+}
+
+function solve(p) {
+  const J = { P: [0, 0] };
+  J.S = add(J.P, mul(dir(p.t), LEN.torso));
+  J.H = add(J.S, mul(dir(p.t + p.hd), LEN.neck));
+  const legs = {};
+  for (const s of ['n', 'f']) if (p.legs[s].a) [J['K' + s], J['A' + s]] = limb(J.P, p.legs[s], LEN.thigh, LEN.shin);
+  // place the body: by the hip, or so that a pinned joint lands on its spot
+  const target = p.pin ? p.pin.at : p.hip, from = p.pin ? J[p.pin.j] : J.P, d = sub(target, from);
+  for (const k in J) J[k] = add(J[k], d);
+  for (const s of ['n', 'f']) {
+    if (!p.legs[s].a) [J['K' + s], J['A' + s]] = limb(J.P, p.legs[s], LEN.thigh, LEN.shin);
+    J['T' + s] = add(J['A' + s], mul(dir(angleOf(sub(J['A' + s], J['K' + s])) + 90), LEN.foot));
+    [J['E' + s], J['W' + s]] = limb(J.S, p.arms[s], LEN.up, LEN.fore);
+  }
+  J.headDir = p.t + p.hd;
+  return J;
+}
+
+function lerp(a, b, s) {
+  if (typeof a === 'number') return a + (b - a) * s;
+  if (Array.isArray(a)) return a.map((x, i) => lerp(x, b[i], s));
+  if (a && typeof a === 'object') { const o = {}; for (const k in a) o[k] = lerp(a[k], b[k], s); return o; }
+  return a;
+}
+
+const EX = {
+  pushups: { name: 'Push-ups', ms: 1700, db: false,
+    a: { pin: { j: 'An', at: [9, 55.2] }, t: 113, hd: 12, legs: { n: { a: [-67, -67] }, f: { a: [-67, -67] } },
+         arms: { n: { to: [44, 57], bend: 1 }, f: { to: [42, 57], bend: 1 } } },
+    b: { pin: { j: 'An', at: [9, 55.2] }, t: 99, hd: 14, legs: { n: { a: [-81, -81] }, f: { a: [-81, -81] } },
+         arms: { n: { to: [44, 57], bend: 1 }, f: { to: [42, 57], bend: 1 } } } },
+  curls: { name: 'Hammer curls', ms: 2000, db: true,
+    a: { hip: [30, 34.8], t: 180, hd: 0, legs: { n: { a: [4, -1] }, f: { a: [-5, 1] } },
+         arms: { n: { a: [6, 10] }, f: { a: [-6, -4] } } },
+    b: { hip: [30, 34.8], t: 182, hd: -4, legs: { n: { a: [4, -1] }, f: { a: [-5, 1] } },
+         arms: { n: { a: [14, 168] }, f: { a: [-6, -4] } } } },
+  situps: { name: 'Sit-ups', ms: 2400, db: false,
+    a: { hip: [34, 54.6], t: -90, hd: 0, legs: { n: { to: [51, 56.4], bend: -1 }, f: { to: [49, 56.4], bend: -1 } },
+         arms: { n: { a: [118, 100] }, f: { a: [112, 96] } } },
+    b: { hip: [34, 54.6], t: -152, hd: -22, legs: { n: { to: [51, 56.4], bend: -1 }, f: { to: [49, 56.4], bend: -1 } },
+         arms: { n: { a: [112, 98] }, f: { a: [106, 94] } } } },
+  cheer: { name: 'Victory', ms: 700, db: false,
+    a: { hip: [30, 37], t: 180, hd: 0, legs: { n: { to: [33, 56.6], bend: -1 }, f: { to: [28, 56.6], bend: -1 } },
+         arms: { n: { a: [125, 140] }, f: { a: [-125, -140] } } },
+    b: { hip: [30, 35], t: 180, hd: 6, legs: { n: { to: [32, 55], bend: -1 }, f: { to: [28, 55], bend: -1 } },
+         arms: { n: { a: [138, 150] }, f: { a: [-138, -150] } } } },
+  hips: { name: 'Hip stretch', ms: 4200, db: false,
+    a: { hip: [29, 46.5], t: 180, hd: 0, legs: { n: { to: [42, 56.6], bend: -1 }, f: { to: [12, 56.5], bend: -1 } },
+         arms: { n: { a: [28, 62] }, f: { a: [16, 52] } } },
+    b: { hip: [31.5, 49], t: 188, hd: -6, legs: { n: { to: [42, 56.6], bend: -1 }, f: { to: [12, 56.5], bend: -1 } },
+         arms: { n: { a: [172, 178] }, f: { a: [167, 175] } } } },
+};
+
+// Palettes map body parts to colors. "n" parts are on the near side, "f" parts on the far side (drawn behind).
+const STYLES = {
+  sprite: { res: 32, outline: '#1c130b', eye: '#1c130b', ground: '#3b2f24', groundTop: '#5a4632',
+    c: { skin: '#eab48a', skinF: '#b97f5a', tunic: '#3f8a3c', tunicF: '#2a5e29', pants: '#7a5232', pantsF: '#4f3520',
+         boot: '#3a2914', bootF: '#2a1d0f', hair: '#6b3b16', belt: '#f6c744', iron: '#aab3bd', ironF: '#646d78' } },
+  ink: { res: 48, outline: null, eye: null, ground: null, groundTop: '#8a6a40', dotted: true,
+    c: { skin: '#3a2914', skinF: '#9a7a4c', tunic: '#3a2914', tunicF: '#9a7a4c', pants: '#3a2914', pantsF: '#9a7a4c',
+         boot: '#3a2914', bootF: '#9a7a4c', hair: '#3a2914', belt: '#3a2914', iron: '#3a2914', ironF: '#3a2914' } },
+  icon: { res: 32, outline: '#241806', eye: '#7a5a12', ground: null, groundTop: '#5a4614',
+    c: { skin: '#f6c744', skinF: '#a87a12', tunic: '#ffd96a', tunicF: '#a87a12', pants: '#e2b23a', pantsF: '#8f6810',
+         boot: '#c99a26', bootF: '#7a580c', hair: '#ffe89a', belt: '#fff2c4', iron: '#fff2c4', ironF: '#c99a26' } },
+  lcd: { res: 24, outline: null, eye: null, ground: null, groundTop: '#306230',
+    c: { skin: '#0f380f', skinF: '#306230', tunic: '#0f380f', tunicF: '#306230', pants: '#0f380f', pantsF: '#306230',
+         boot: '#0f380f', bootF: '#306230', hair: '#0f380f', belt: '#0f380f', iron: '#0f380f', ironF: '#0f380f' } },
+};
+
+function render(ctx, style, ex, s) {
+  const st = STYLES[style], R = st.res, k = R / VIEW.size, X = x => (x - VIEW.x) * k, Y = y => (y - VIEW.y) * k;
+  const J = solve(lerp(ex.a, ex.b, s));
+  const buf = new Array(R * R).fill(null);
+  const floorRow = Math.round(Y(FLOOR));
+  const put = (i, j, c) => { if (i >= 0 && j >= 0 && i < R && j < floorRow) buf[j * R + i] = c; };
+  const disc = (p, r, c) => {
+    const x = X(p[0]), y = Y(p[1]), rr = Math.max(r * k, 0.62);
+    let hit = false;
+    for (let j = Math.floor(y - rr); j <= Math.ceil(y + rr); j++)
+      for (let i = Math.floor(x - rr); i <= Math.ceil(x + rr); i++)
+        if ((i + 0.5 - x) ** 2 + (j + 0.5 - y) ** 2 <= rr * rr) { put(i, j, c); hit = true; }
+    if (!hit) put(Math.floor(x), Math.floor(y), c);
+  };
+  const seg = (p, q, r, c) => { const n = Math.ceil(len(sub(q, p)) * k * 3) + 1; for (let t = 0; t <= n; t++) disc(lerp(p, q, t / n), r, c); };
+  const C = st.c;
+
+  const leg = s => {
+    const F = s === 'f' ? 'F' : '';
+    seg(J.P, J['K' + s], 1.8, C['pants' + F]);
+    seg(J['K' + s], J['A' + s], 1.6, C['pants' + F]);
+    seg(lerp(J['K' + s], J['A' + s], 0.7), J['A' + s], 1.7, C['boot' + F]);
+    seg(J['A' + s], J['T' + s], 1.3, C['boot' + F]);
+  };
+  const dumbbell = (s, F) => {
+    const W = J['W' + s], fd = mul(sub(W, J['E' + s]), 1 / LEN.fore), h = [-fd[1], fd[0]];
+    seg(add(W, mul(h, -3.2)), add(W, mul(h, 3.2)), 0.7, C['iron' + F]);
+    for (const e of [-2.8, 2.8]) { const c = add(W, mul(h, e)); seg(add(c, mul(fd, -2.4)), add(c, mul(fd, 2.4)), 1.1, C.iron); }
+  };
+  const arm = s => {
+    const F = s === 'f' ? 'F' : '';
+    seg(J.S, J['E' + s], 1.6, C['tunic' + F]);
+    seg(J['E' + s], J['W' + s], 1.35, C['skin' + F]);
+    disc(J['W' + s], 1.5, C['skin' + F]);
+    if (ex.db && s === 'n') dumbbell(s, F);
+  };
+  const head = () => {
+    const up = dir(J.headDir), fwd = [-up[1], up[0]], r = 4.4, H = J.H;
+    seg(J.S, H, 1.3, C.skin);
+    const x = X(H[0]), y = Y(H[1]), rr = r * k;
+    for (let j = Math.floor(y - rr); j <= Math.ceil(y + rr); j++)
+      for (let i = Math.floor(x - rr); i <= Math.ceil(x + rr); i++) {
+        const rx = (i + 0.5 - x) / k, ry = (j + 0.5 - y) / k;
+        if (rx * rx + ry * ry > r * r) continue;
+        const u = rx * up[0] + ry * up[1], f = rx * fwd[0] + ry * fwd[1];
+        put(i, j, (u > 0.4 && f < r * 0.45) || u > r * 0.6 ? C.hair : C.skin);
+      }
+    if (st.eye && R >= 32) { const e = add(add(H, mul(fwd, r * 0.5)), mul(up, -r * 0.05)); put(Math.floor(X(e[0])), Math.floor(Y(e[1])), st.eye); }
+  };
+
+  leg('f'); arm('f');
+  seg(J.S, J.P, 2.7, C.tunic);
+  const bc = lerp(J.P, J.S, 0.14), bd = dir(angleOf(sub(J.S, J.P)) + 90);
+  seg(add(bc, mul(bd, -2.4)), add(bc, mul(bd, 2.4)), 0.55, C.belt);
+  leg('n'); head(); arm('n');
+
+  // outline: every empty pixel touching the figure (classic 4-neighbour sprite outline)
+  if (st.outline) {
+    const filled = buf.slice();
+    for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
+      if (filled[j * R + i]) continue;
+      const nb = (a, b) => a >= 0 && b >= 0 && a < R && b < R && filled[b * R + a];
+      if (nb(i - 1, j) || nb(i + 1, j) || nb(i, j - 1) || nb(i, j + 1)) buf[j * R + i] = st.outline;
+    }
+  }
+  ctx.clearRect(0, 0, R, R);
+  if (st.ground) { ctx.fillStyle = st.ground; ctx.fillRect(0, floorRow, R, R - floorRow); }
+  if (st.groundTop) { ctx.fillStyle = st.groundTop; for (let i = 0; i < R; i++) if (!st.dotted || i % 2 === 0) ctx.fillRect(i, floorRow, 1, 1); }
+  for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) { const c = buf[j * R + i]; if (c) { ctx.fillStyle = c; ctx.fillRect(i, j, 1, 1); } }
+}
+
+// build the shelves
+const views = [];
+for (const shelf of document.querySelectorAll('.shelf')) {
+  const style = shelf.dataset.style, row = shelf.querySelector('.row');
+  for (const id of ['pushups', 'curls', 'situps', 'hips']) {
+    const fig = document.createElement('figure'); fig.className = 'tile'; fig.style.margin = '0';
+    const stage = document.createElement('div'); stage.className = 'stage st-' + style;
+    const cv = document.createElement('canvas'); cv.width = cv.height = STYLES[style].res;
+    cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', EX[id].name + ', ' + shelf.querySelector('h2').textContent + ' style');
+    stage.append(cv); fig.append(stage);
+    const cap = document.createElement('figcaption'); cap.textContent = EX[id].name; fig.append(cap);
+    row.append(fig);
+    views.push({ ctx: cv.getContext('2d'), style, ex: EX[id] });
+  }
+}
+const cardCanvas = document.getElementById('card-canvas'), portrait = document.getElementById('portrait');
+const card = { ctx: null, style: 'sprite', ex: EX.pushups };
+function setCard(style) {
+  card.style = style; cardCanvas.width = cardCanvas.height = STYLES[style].res; card.ctx = cardCanvas.getContext('2d');
+  portrait.className = 'portrait st-' + style;
+  for (const b of document.querySelectorAll('[data-pick]')) b.setAttribute('aria-pressed', String(b.dataset.pick === style));
+}
+setCard('sprite');
+const done = document.getElementById('card-done');
+let cheerTimer = 0;
+done.addEventListener('click', () => {
+  card.ex = EX.cheer; done.textContent = '+30 XP';
+  clearTimeout(cheerTimer);
+  cheerTimer = setTimeout(() => { card.ex = EX.pushups; done.textContent = 'Quest complete'; }, 2400);
+});
+document.querySelector('.seg').addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b) setCard(b.dataset.pick); });
+
+// motion: ping-pong between the two poses, stepped like sprite frames
+const still = matchMedia('(prefers-reduced-motion: reduce)');
+const phase = (ex, now) => { const p = (now % ex.ms) / ex.ms; return Math.round((0.5 - 0.5 * Math.cos(2 * Math.PI * p)) * 6) / 6; };
+let last = -1;
+function frame(now) {
+  if (now - last >= 80 || last < 0) {
+    last = now;
+    for (const v of [...views, card]) render(v.ctx, v.style, v.ex, still.matches ? 0.5 : phase(v.ex, now));
+  }
+  if (!still.matches) requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+still.addEventListener?.('change', () => { last = -1; requestAnimationFrame(frame); });
+</script>

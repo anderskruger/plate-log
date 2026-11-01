@@ -381,7 +381,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 </style>
-<link rel="stylesheet" href="quest.css?v=2">
+<link rel="stylesheet" href="quest.css?v=3">
 </head>
 <body>
 <div id="app" class="app"></div>
@@ -389,7 +389,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 <div id="sheet-root"></div>
 <div id="toast" class="toast" hidden></div>
 
-<script src="quest.js?v=2"></script>
+<script src="quest-sprite.js?v=1"></script>
+<script src="quest.js?v=3"></script>
 <script>
 /* ---------- The plan. In the real app this lives in a file Claude edits when you describe a change. ---------- */
 const PLAN = [
@@ -620,7 +621,7 @@ const CALLS = [
   return { name, id, aliases: [id, ...more] };
 });
 const custom = {};          // id -> [{ key, name, buf, err }]; several takes of one callout rotate at random
-const BUILD = 'v2';
+const BUILD = 'v3';
 const diag = { pick: 'no files picked yet', play: 'nothing played yet', load: 'checking saved files…' };   // shown on the sounds screen
 let soundsSaved = true;     // false when this browser won't store files
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

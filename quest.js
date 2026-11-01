@@ -53,6 +53,26 @@ function qClock(ms) {
 let qTimer = null;          // the running countdown of a timed quest: { id, start, total, sided, ticked }
 const qShown = new Set();   // quests already unrolled on screen
 
+// The hero sprite on the quest scroll (quest-sprite.js) acts out the exercise, and cheers when the quest is turned in.
+let qSpriteOn = false, qCheer = false;
+function qSpriteRun() {
+  if (qSpriteOn || typeof QSprite === 'undefined') return;
+  qSpriteOn = true;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let last = -1;
+  const frame = now => {
+    const cv = document.getElementById('qm-sprite');
+    if (!cv) { qSpriteOn = false; return; }
+    if (last < 0 || now - last >= 80) {
+      last = now;
+      const id = qCheer ? 'cheer' : cv.dataset.ex;
+      QSprite.draw(cv.getContext('2d'), id, still ? (qCheer ? 1 : 0.5) : QSprite.phase(id, now));
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
 function qPick(exclude = []) {
   const Q = S.quest;
   const recent = [...Q.done, ...Q.waiting, ...Q.plan].map(q => q.exId).slice(-4);
@@ -122,7 +142,7 @@ function qComplete(id) {
   if (qTimer && qTimer.id === id) qTimer = null;
   const r = qRecord(id, Date.now()); if (!r) return;
   save();
-  qPlay('complete');
+  qPlay('complete'); qCheer = true;
   const row = document.getElementById('qm-obj-row'); if (row) row.classList.add('done');
   const cnt = document.getElementById('qm-obj-count'); if (cnt && qEx(r.q.exId).kind === 'reps') cnt.innerHTML = `${r.q.amount}<small>/${r.q.amount}</small>`;
   const box = (scroll || $('#app')).getBoundingClientRect();
@@ -359,7 +379,6 @@ const Q_ICON = {
   swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h13l-3.5-3.5M20 15H7l3.5 3.5"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L20 6.5"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
-  flourish: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 10-3 10-3-10z"/></svg>',
   gem: '<svg class="qm-gem" viewBox="0 0 24 24"><path d="M12 2l8 7-8 13-8-13z" fill="#f6c744" stroke="#6b4a06" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 9h16M12 2l-3 7 3 13 3-13z" fill="none" stroke="#6b4a06" stroke-width="1.2"/></svg>',
   tab: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5h4l-.8 12h-2.4z"/><circle cx="12" cy="19" r="2.4"/></svg>',
 };
@@ -414,13 +433,14 @@ function qScroll(q) {
   const fresh = !qShown.has(q.id); qShown.add(q.id);
   const waited = Math.floor((now - q.at) / 60000), swift = now - q.at <= Q_SWIFT_MS;
   const xp = Q_CAT_XP[ex.cat] * (q.elite ? 2 : 1);
+  qCheer = false; requestAnimationFrame(qSpriteRun);
   const count = ex.kind === 'reps' ? `0<small>/${q.amount}</small>` : qClock(t ? (t.total - (performance.now() - t.start) / 1000) * 1000 : qSecs(q) * 1000);
   return `<div class="qm-wrap">
     ${qMarker(t ? '?' : '!', 64, 'bob')}
     <article class="qm-scroll ${q.elite ? 'elite' : ''} ${fresh ? 'fresh' : ''}" id="qm-scroll">
       ${q.elite ? '<span class="qm-ribbon">Elite</span>' : ''}
       <h2 class="qm-title">${ex.quest}</h2>
-      <div class="qm-orn">${Q_ICON.flourish}</div>
+      <div class="qm-pic"><canvas id="qm-sprite" width="32" height="32" data-ex="${ex.id}" role="img" aria-label="${ex.name}"></canvas></div>
       <div class="qm-objective">
         <div class="qm-obj-row" id="qm-obj-row">
           <span class="qm-box">${Q_ICON.check}</span>

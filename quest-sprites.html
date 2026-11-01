@@ -1,0 +1,252 @@
+<title>Quest Sprite Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+/* Layout: a sticky tally, then one card per quest in a responsive grid; each card is the live sprite, its two end
+   poses, and the approve / change controls. Single dark look on purpose, matching Plate Log. */
+:root {
+  color-scheme: dark;
+  --floor: #14161b;
+  --raised: #1d2027;
+  --raised-2: #272b34;
+  --line: #313643;
+  --chalk: #eeeae1;
+  --dim: #999ba5;
+  --gold: #f6c744;
+  --green: #3db46a;
+  --orange: #f0883a;
+  --sky-1: #1f2b40;
+  --sky-2: #34496a;
+  --font-display: "Big Shoulders Display", "Oswald", "Arial Narrow", sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-lore: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --font-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  --font-pixel: "Silkscreen", ui-monospace, "Consolas", monospace;
+}
+body { background: var(--floor); color: var(--chalk); font: 15px/1.5 var(--font-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--floor); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 26px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+
+header { display: grid; gap: 8px; }
+.eyebrow { font: 11px var(--font-pixel); letter-spacing: 0.08em; color: var(--gold); text-transform: uppercase; }
+h1 { font: 800 clamp(38px, 8vw, 58px)/0.95 var(--font-display); text-transform: uppercase; margin: 0; text-wrap: balance; }
+.lede { max-width: 64ch; color: var(--dim); margin: 0; }
+
+.tally { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
+  background: color-mix(in srgb, var(--floor) 92%, transparent); backdrop-filter: blur(6px); padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tally .bar { flex: 1 1 180px; height: 8px; border-radius: 4px; background: var(--raised-2); overflow: hidden; display: flex; }
+.tally .bar i { display: block; height: 100%; }
+.tally .bar .ok { background: var(--green); } .tally .bar .ch { background: var(--orange); }
+.tally .count { font: 600 14px var(--font-body); font-variant-numeric: tabular-nums; display: flex; gap: 14px; flex-wrap: wrap; }
+.tally .count span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status-note { font-size: 13px; color: var(--dim); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card[data-status="approved"] { border-color: #2c6b45; box-shadow: inset 0 3px 0 var(--green); }
+.card[data-status="changes"] { border-color: #7a4a22; box-shadow: inset 0 3px 0 var(--orange); }
+.pics { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.stills { display: grid; grid-template-rows: 1fr 1fr; gap: 8px; }
+.pic { position: relative; border-radius: 6px; overflow: hidden; background: linear-gradient(var(--sky-1), var(--sky-2)); box-shadow: inset 0 0 0 1px #ffffff12; aspect-ratio: 1; }
+.pic canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.pic small { position: absolute; left: 5px; top: 4px; font: 9px var(--font-pixel); color: #ffffffaa; letter-spacing: 0.05em; }
+.title { display: grid; gap: 1px; min-width: 0; }
+.title .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.title h2 { font: 600 17px/1.2 var(--font-body); margin: 0; }
+.cat { font: 9px var(--font-pixel); letter-spacing: 0.06em; color: var(--dim); border: 1px solid var(--line); border-radius: 3px; padding: 2px 5px 1px; white-space: nowrap; }
+.title .quest { font: italic 15px/1.3 var(--font-lore); color: #d9c590; }
+.how { font-size: 13px; color: var(--dim); margin: 0; }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.btn { font: 600 13px var(--font-body); color: var(--chalk); background: var(--raised-2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn:hover:not(:disabled) { border-color: #4a5060; }
+.btn:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn.ok[aria-pressed="true"] { background: #1f4a31; border-color: var(--green); color: #c9f2d7; }
+.btn.ch[aria-pressed="true"] { background: #4d2e14; border-color: var(--orange); color: #ffd9b8; }
+.btn svg { width: 15px; height: 15px; }
+.note { display: grid; gap: 6px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 58px; resize: vertical; font: 14px/1.4 var(--font-body); color: var(--chalk); background: var(--floor); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; }
+textarea::placeholder { color: #6c707b; }
+.note-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 30px; }
+.saved { font-size: 12px; color: var(--dim); }
+.btn.save { padding: 6px 12px; }
+
+@media (prefers-reduced-motion: reduce) { .pic.live small::after { content: " · still"; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Plate Log · Quest mode</div>
+    <h1>Quest sprite review</h1>
+    <p class="lede">All 19 quests as hero sprites. The big picture plays the move; the two small ones show where it starts and ends. Approve the ones you like, or mark one for changes and write what's off. I read your notes from here.</p>
+  </header>
+
+  <div class="tally" aria-live="polite">
+    <div class="count">
+      <span><i class="dot" style="background:var(--green)"></i><b id="n-ok">0</b> approved</span>
+      <span><i class="dot" style="background:var(--orange)"></i><b id="n-ch">0</b> need changes</span>
+      <span><i class="dot" style="background:var(--raised-2);box-shadow:inset 0 0 0 1px var(--line)"></i><b id="n-todo">19</b> to review</span>
+    </div>
+    <div class="bar" aria-hidden="true"><i class="ok" id="bar-ok"></i><i class="ch" id="bar-ch"></i></div>
+    <span class="status-note" id="status-note">Connecting…</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<script src="quest-sprite.js"></script>
+<script>
+const QUESTS = [
+  ['pushups', 'body', 'Push-ups', 'Raise the Rampart', 'Body in one straight line. Knees down is fine.'],
+  ['situps', 'body', 'Sit-ups', 'Core of the Mountain', 'Knees bent. Curl up with your stomach, not your neck.'],
+  ['squats', 'body', 'Squats', 'Stand Your Ground', 'Sit back until your thighs are level, then stand tall.'],
+  ['plank', 'body', 'Plank', 'The Unbending', 'Forearms down, hips level with your shoulders.'],
+  ['wallsit', 'body', 'Wall sit', 'Hold the Wall', 'Back flat on the wall, knees at a right angle.'],
+  ['bridges', 'body', 'Glute bridges', 'Bridge the Chasm', 'On your back, push through your heels, squeeze at the top.'],
+  ['curls', 'db', 'Hammer curls', 'Arms of the Smith', '10 kg dumbbell, thumb up. Elbow pinned, slow on the way down.'],
+  ['goblet', 'db', 'Goblet squats', 'Carry the Keg', 'Hold the dumbbell at your chest, sit deep, stand tall.'],
+  ['rows', 'db', 'One-arm rows', 'Row to the Far Shore', 'Free hand on the desk, flat back, pull the dumbbell to your hip.'],
+  ['press', 'db', 'One-arm press', 'Lift the Banner', 'From your shoulder to a straight arm overhead, ribs down.'],
+  ['rdl', 'db', 'Dumbbell deadlift', 'Bow to the Dawn', 'Dumbbell in both hands, soft knees, hinge at the hips, flat back.'],
+  ['neck', 'stretch', 'Neck stretch', 'Loosen the Helm', 'Ear toward your shoulder, other hand reaching down.'],
+  ['wrists', 'stretch', 'Wrist stretch', 'Rest the Mouse Hand', 'Arm straight, gently pull your fingers back, then down.'],
+  ['chest', 'stretch', 'Chest opener', 'Open the Gates', 'Forearms on a door frame, step through.'],
+  ['hips', 'stretch', 'Hip flexor stretch', 'Unbind the Saddle', 'Half-kneeling lunge, squeeze the back glute.'],
+  ['twist', 'stretch', 'Seated twist', 'Turn of the Tide', 'Sit tall, turn from the ribs, hold the chair.'],
+  ['catcow', 'stretch', 'Cat-cow', 'The Restless Back', 'On hands and knees, round your back, then arch it.'],
+  ['walk', 'break', 'Walk around', 'Patrol the Keep', 'Stand up and walk. Refill your water.'],
+  ['eyes', 'break', 'Look far away', 'Watch the Horizon', 'Eyes off the screen, then roll your shoulders.'],
+];
+const CAT = { body: 'Bodyweight', db: 'Dumbbell', stretch: 'Stretch', break: 'Break' };
+const ICON = {
+  ok: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+  ch: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>',
+};
+
+// ---- reviews: one db document per quest in "reviews" ({status: 'approved' | 'changes' | '', comment, at}) ----
+const reviews = {};
+let store = null;                 // the reviews collection, once the db answers
+const grid = document.getElementById('grid'), note = document.getElementById('status-note');
+const cards = {}, views = [];
+
+for (const [id, cat, name, quest, how] of QUESTS) {
+  const el = document.createElement('article');
+  el.className = 'card'; el.dataset.id = id; el.dataset.status = '';
+  el.innerHTML = `
+    <div class="pics">
+      <div class="pic live"><canvas width="${QSprite.RES}" height="${QSprite.RES}" role="img" aria-label="${name}, animated"></canvas></div>
+      <div class="stills">
+        <div class="pic"><canvas width="${QSprite.RES}" height="${QSprite.RES}" role="img" aria-label="${name}, start"></canvas><small>Start</small></div>
+        <div class="pic"><canvas width="${QSprite.RES}" height="${QSprite.RES}" role="img" aria-label="${name}, end"></canvas><small>End</small></div>
+      </div>
+    </div>
+    <div class="title">
+      <div class="row1"><h2>${name}</h2><span class="cat">${CAT[cat]}</span></div>
+      <div class="quest">${quest}</div>
+    </div>
+    <p class="how">${how}</p>
+    <div class="actions">
+      <button type="button" class="btn ok" id="ok-${id}" data-act="approved" aria-pressed="false" disabled>${ICON.ok}Approve</button>
+      <button type="button" class="btn ch" id="ch-${id}" data-act="changes" aria-pressed="false" disabled>${ICON.ch}Needs changes</button>
+    </div>
+    <div class="note">
+      <textarea id="note-${id}" placeholder="What should change? (optional)" aria-label="Comment on ${name}" disabled></textarea>
+      <div class="note-row"><span class="saved" id="saved-${id}"></span><button type="button" class="btn save" id="save-${id}" hidden>Save comment</button></div>
+    </div>`;
+  grid.append(el);
+  const [live, start, end] = el.querySelectorAll('canvas');
+  QSprite.draw(start.getContext('2d'), id, 0);
+  QSprite.draw(end.getContext('2d'), id, 1);
+  views.push({ id, ctx: live.getContext('2d') });
+  cards[id] = el;
+}
+
+function paint(id) {
+  const r = reviews[id] || {}, el = cards[id];
+  el.dataset.status = r.status || '';
+  el.querySelector('.ok').setAttribute('aria-pressed', String(r.status === 'approved'));
+  el.querySelector('.ch').setAttribute('aria-pressed', String(r.status === 'changes'));
+  const ta = el.querySelector('textarea');
+  if (document.activeElement !== ta && !ta.dataset.dirty) ta.value = r.comment || '';
+  el.querySelector('.saved').textContent = r.at ? 'Saved ' + new Date(r.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+}
+function tally() {
+  let ok = 0, ch = 0;
+  for (const [id] of QUESTS) { const s = (reviews[id] || {}).status; if (s === 'approved') ok++; else if (s === 'changes') ch++; }
+  const n = QUESTS.length;
+  document.getElementById('n-ok').textContent = ok;
+  document.getElementById('n-ch').textContent = ch;
+  document.getElementById('n-todo').textContent = n - ok - ch;
+  document.getElementById('bar-ok').style.width = ok / n * 100 + '%';
+  document.getElementById('bar-ch').style.width = ch / n * 100 + '%';
+}
+
+const writing = {};
+async function save(id, patch) {
+  if (!store) return;
+  const next = { status: '', comment: '', ...(reviews[id] || {}), ...patch, at: Date.now() };
+  reviews[id] = next; paint(id); tally();
+  while (writing[id]) await writing[id];
+  writing[id] = store.doc(id).set(next).catch(e => {
+    note.textContent = e && e.code === 'invalid_argument' ? 'You can look, but only the owner can save reviews.' : 'Couldn\'t save. Check your connection and try again.';
+  }).finally(() => { writing[id] = null; });
+  await writing[id];
+}
+
+grid.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const id = b.closest('.card').dataset.id, r = reviews[id] || {};
+  const ta = document.getElementById('note-' + id);
+  if (b.dataset.act) {
+    const status = r.status === b.dataset.act ? '' : b.dataset.act;
+    save(id, { status, comment: ta.value.trim() });
+    delete ta.dataset.dirty; document.getElementById('save-' + id).hidden = true;
+    if (status === 'changes' && !ta.value.trim()) ta.focus();
+  } else if (b.classList.contains('save')) {
+    const comment = ta.value.trim();
+    save(id, { comment, status: r.status || (comment ? 'changes' : '') });
+    delete ta.dataset.dirty; b.hidden = true;
+  }
+});
+grid.addEventListener('input', e => {
+  if (e.target.tagName !== 'TEXTAREA') return;
+  const id = e.target.closest('.card').dataset.id;
+  e.target.dataset.dirty = '1';
+  document.getElementById('save-' + id).hidden = e.target.value.trim() === ((reviews[id] || {}).comment || '');
+});
+
+function enable(on) { for (const el of grid.querySelectorAll('.actions .btn, textarea')) el.disabled = !on; }
+
+(async () => {
+  const db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+  if (!db) { note.textContent = 'Reviews can be saved when this page is open on claude.ai.'; return; }
+  const col = db.collection('reviews');
+  const timer = setTimeout(() => { note.textContent = 'Can\'t reach saved reviews yet. Still trying…'; }, 10000);
+  col.onSnapshot(snap => {
+    for (const d of snap.docs) reviews[d.id] = d.data();
+    for (const ch of snap.docChanges()) if (ch.type === 'removed') delete reviews[ch.doc.id];
+    for (const [id] of QUESTS) paint(id);
+    tally();
+    if (!snap.metadata.fromCache) { clearTimeout(timer); note.textContent = 'Saved automatically'; }
+    if (!store) { store = col; enable(true); }
+  }, e => {
+    clearTimeout(timer);
+    note.textContent = e.code === 'revoked' ? 'Reviews are no longer available here.' : 'Couldn\'t load saved reviews. Reload the page to try again.';
+    enable(false);
+  });
+})();
+
+// motion
+const still = matchMedia('(prefers-reduced-motion: reduce)');
+let last = -1;
+function frame(now) {
+  if (last < 0 || now - last >= 80) { last = now; for (const v of views) QSprite.draw(v.ctx, v.id, still.matches ? 0.5 : QSprite.phase(v.id, now)); }
+  if (!still.matches) requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+still.addEventListener('change', () => { last = -1; requestAnimationFrame(frame); });
+</script>

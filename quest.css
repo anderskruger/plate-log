@@ -77,9 +77,9 @@
 .qm-scroll.elite { box-shadow: inset 0 0 0 1px #b59a62, inset 0 0 0 6px var(--q-parch), inset 0 0 0 8px var(--q-gold-deep), inset 0 0 50px #a8844b77, 0 0 0 2px #f6c74455, 0 0 34px #f6c74455, 0 16px 40px #000a; }
 .qm-ribbon { position: absolute; top: 12px; right: -6px; background: linear-gradient(#ffd75e, #c48d14); color: #2b1c04; font-family: var(--font-caps); font-size: 13px; letter-spacing: 0.12em; padding: 3px 12px 3px 10px; box-shadow: 0 2px 4px #0006; }
 .qm-title { font-family: var(--font-lore); font-weight: 400; font-size: 30px; line-height: 1.05; }
-.qm-orn { display: flex; align-items: center; gap: 10px; width: 100%; color: #8d6f3c; }
-.qm-orn::before, .qm-orn::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #9c7e47, transparent); }
-.qm-orn svg { width: 14px; height: 14px; }
+.qm-pic { width: 128px; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: linear-gradient(#1f2b40, #34496a);
+  box-shadow: 0 0 0 2px #8d6f3c, 0 0 0 4px #e6d3a6, 0 0 0 5px #a98b53, 0 3px 8px #5b462766; }
+.qm-pic canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
 .qm-objective { width: 100%; display: flex; flex-direction: column; gap: 8px; }
 .qm-obj-row { display: flex; align-items: center; gap: 12px; text-align: left; }
 .qm-box { width: 26px; height: 26px; flex: none; border: 2px solid var(--q-ink); border-radius: 4px; display: grid; place-items: center; box-sizing: border-box; }
