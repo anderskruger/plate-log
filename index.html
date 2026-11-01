@@ -762,9 +762,63 @@ async function downloadSounds(force) {
 }
 loadSounds().then(() => downloadSounds());
 
+/* ---------- inside the Plate Log Android app (app-shell repo): native extras ----------
+   In a normal browser `native` is null and everything below falls back to the web behaviour. */
+const native = (() => {
+  const C = window.Capacitor;
+  return C && C.isNativePlatform && C.isNativePlatform() ? C.Plugins : null;
+})();
+const REST_IDS = STAGES.map((_, i) => 100 + i);
+// While the phone is locked or the app is in the background, the page's own timers stop,
+// so the rest stages are handed to Android as notifications with the same beeps.
+async function scheduleRestAlerts() {
+  const a = S.active;
+  if (!native || !a || !a.lastLogAt || !S.sound) return;
+  const now = Date.now(), cur = currentSet();
+  const due = STAGES.map((s, i) => ({ id: REST_IDS[i], at: a.lastLogAt + s.t * 1000, s })).filter(x => x.at > now + 500);
+  if (!due.length) return;
+  try {
+    await native.LocalNotifications.schedule({ notifications: due.map(x => ({
+      id: x.id,
+      title: `Rest ${fmtClock(x.s.t * 1000)} · ${x.s.label}`,
+      body: cur ? `Next: ${cur.ex.name}, set ${cur.i + 1} · ${fmtWU(cur.s.weight)} × ${cur.s.reps}` : 'All sets done. Tap to finish.',
+      channelId: 'rest-' + x.s.sound,
+      smallIcon: 'ic_stat_notify',
+      schedule: { at: new Date(x.at), allowWhileIdle: true },
+    })) });
+  } catch (e) {}
+}
+async function cancelRestAlerts() {
+  if (!native) return;
+  try { await native.LocalNotifications.cancel({ notifications: REST_IDS.map(id => ({ id })) }); } catch (e) {}
+}
+async function nativeSetup() {
+  if (!native) return;
+  try {   // one channel per stage, each with its own beep (bundled in the app as res/raw/rest_*.wav)
+    for (const s of STAGES) await native.LocalNotifications.createChannel({
+      id: 'rest-' + s.sound, name: 'Rest ' + fmtClock(s.t * 1000), description: s.label,
+      importance: 5, sound: 'rest_' + s.sound, vibration: true, visibility: 1,
+    });
+  } catch (e) {}
+  native.App.addListener('pause', scheduleRestAlerts);
+  native.App.addListener('resume', () => { cancelRestAlerts(); if (S.active) keepAwake(); });
+  native.App.addListener('backButton', () => {
+    if (sheet) { sheet = null; renderSheet(); }
+    else if (view.screen !== 'home') { view.screen = 'home'; render(); scrollTo(0, 0); }   // a running workout keeps going
+    else native.App.minimizeApp();
+  });
+}
+nativeSetup();
+
 let wakeLock = null;
 async function keepAwake() {
+  if (native) { try { await native.KeepAwake.keepAwake(); } catch (e) {} return; }
   try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+}
+function allowSleep() {
+  cancelRestAlerts();
+  if (native) { try { native.KeepAwake.allowSleep(); } catch (e) {} }
+  try { wakeLock && wakeLock.release(); } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.active) keepAwake(); });
 
@@ -778,6 +832,7 @@ function sessionWorkout() {
 }
 function startWorkout(wid, short) {
   ensureAudio(); keepAwake();
+  if (native) native.LocalNotifications.requestPermissions().catch(() => {});   // Android asks once, for the lock-screen rest alerts
   const w = byId(wid);
   const sets = {};
   planExercises(w, short).forEach(ex => {
@@ -866,7 +921,7 @@ function finishWorkout() {
   S.history.push(sess);
   rebuildLast(S);
   S.active = null; focus = null;
-  try { wakeLock && wakeLock.release(); } catch (e) {}
+  allowSleep();
   save();
   view.summary = { sess, prevLast };
   view.screen = 'summary';
@@ -875,7 +930,7 @@ function finishWorkout() {
   announce(allDone ? 'Flawless Victory' : 'Impressive', allDone);   // every set done, or finished early
 }
 function discardWorkout() {
-  S.active = null; focus = null; save(); sheet = null; view.screen = 'home'; render(); toast('Workout discarded');
+  S.active = null; focus = null; allowSleep(); save(); sheet = null; view.screen = 'home'; render(); toast('Workout discarded');
 }
 
 /* ---------- screens ---------- */
@@ -1304,6 +1359,7 @@ function sheetSounds() {
     <span>Saved files: ${esc(diag.load)}</span>
     <span>Last callout: ${esc(diag.play)}</span>
     <span>Sounds ${S.sound ? 'on' : 'muted'} · audio engine ${audio ? audio.state : 'not started'}</span>
+    <span>Running in: ${native ? 'Plate Log Android app (lock-screen rest alerts on)' : 'browser'}</span>
   </div>
   <button class="btn btn-ghost btn-block" data-act="settings">Back</button>`;
 }

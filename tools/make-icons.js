@@ -48,4 +48,5 @@ fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'icon-192.png'), draw(192, 1.15));
 fs.writeFileSync(path.join(out, 'icon-512.png'), draw(512, 1.15));
 fs.writeFileSync(path.join(out, 'icon-maskable-512.png'), draw(512, 0.95));   // stays inside Android's safe zone
+fs.writeFileSync(path.join(out, 'icon-android-1024.png'), draw(1024, 0.8));   // Android app launcher icon: plate inside the adaptive-icon safe zone
 console.log('icons written to', out);
