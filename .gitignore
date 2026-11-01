@@ -1,0 +1,3 @@
+# Announcer clips are loaded on the phone, never published with the app
+sounds/
+node_modules/
