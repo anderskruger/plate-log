@@ -88,6 +88,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .next-head { display: flex; gap: 14px; align-items: center; }
 .next-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1; text-transform: uppercase; }
 .meta { color: var(--dim); font-size: 13px; }
+.len-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--raised-2); }
+.len-toggle button { height: 40px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--dim); }
+.len-toggle button.on { background: var(--c, var(--chalk)); color: var(--ink); }
 .ex-preview { color: var(--dim); font-size: 13px; line-height: 1.5; }
 .btn {
   height: 52px; border-radius: 14px; padding: 0 20px;
@@ -388,15 +391,15 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 <script>
 /* ---------- The plan. In the real app this lives in a file Claude edits when you describe a change. ---------- */
 const PLAN = [
-  { id: 'chest', name: 'Chest + Triceps', color: 'red', exercises: [
+  { id: 'chest', name: 'Chest + Triceps', color: 'red', short: ['bench', 'incline-db', 'dips', 'pushdown'], exercises: [
     { id: 'bench', name: 'Bench Press', sets: 4, reps: 8, weight: 60, step: 2.5 },
     { id: 'incline-db', name: 'Incline Dumbbell Press', sets: 3, reps: 10, weight: 22, step: 2, note: 'per dumbbell' },
     { id: 'cable-fly', name: 'Cable Fly', sets: 3, reps: 12, weight: 15, step: 2.5 },
-    { id: 'dips', name: 'Dips', sets: 3, reps: 10, weight: 0, step: 2.5, note: 'added weight' },
+    { id: 'dips', name: 'Dips', sets: 3, reps: 10, weight: 0, step: 2.5, note: '+ added, − assisted' },
     { id: 'pushdown', name: 'Tricep Pushdown', sets: 3, reps: 12, weight: 25, step: 2.5 },
     { id: 'oh-ext', name: 'Overhead Tricep Extension', sets: 3, reps: 12, weight: 20, step: 2.5 },
   ]},
-  { id: 'back', name: 'Biceps + Back', color: 'blue', exercises: [
+  { id: 'back', name: 'Biceps + Back', color: 'blue', short: ['deadlift', 'pulldown', 'cable-row', 'bb-curl'], exercises: [
     { id: 'deadlift', name: 'Deadlift', sets: 3, reps: 5, weight: 100, step: 5 },
     { id: 'pulldown', name: 'Lat Pulldown', sets: 4, reps: 10, weight: 55, step: 2.5 },
     { id: 'cable-row', name: 'Seated Cable Row', sets: 3, reps: 10, weight: 50, step: 2.5 },
@@ -404,7 +407,7 @@ const PLAN = [
     { id: 'bb-curl', name: 'Barbell Curl', sets: 3, reps: 10, weight: 30, step: 2.5 },
     { id: 'hammer', name: 'Hammer Curl', sets: 3, reps: 12, weight: 14, step: 2, note: 'per dumbbell' },
   ]},
-  { id: 'legs', name: 'Shoulders + Legs', color: 'yellow', exercises: [
+  { id: 'legs', name: 'Shoulders + Legs', color: 'yellow', short: ['squat', 'ohp', 'rdl', 'lat-raise'], exercises: [
     { id: 'squat', name: 'Back Squat', sets: 4, reps: 8, weight: 80, step: 2.5 },
     { id: 'ohp', name: 'Overhead Press', sets: 4, reps: 8, weight: 40, step: 2.5 },
     { id: 'rdl', name: 'Romanian Deadlift', sets: 3, reps: 10, weight: 70, step: 2.5 },
@@ -472,8 +475,14 @@ const $ = sel => document.querySelector(sel);
 function byId(id) { return PLAN.find(w => w.id === id); }
 function exById(w, id) { return w.exercises.find(e => e.id === id); }
 function roundTo(v, step) { return Math.round(v / step) * step; }
-function fmtW(v) { return v === 0 ? 'BW' : (Number.isInteger(v) ? String(v) : v.toFixed(v * 10 % 1 ? 2 : 1)); }
-function fmtWU(v) { return v === 0 ? 'bodyweight' : fmtW(v) + ' kg'; }
+// Weights below zero are machine assistance (assisted dips/pull-ups): −20 means 20 kg of help.
+function fmtW(v) {
+  if (v === 0) return 'BW';
+  const a = Math.abs(v);
+  return (v < 0 ? '−' : '') + (Number.isInteger(a) ? String(a) : a.toFixed(a * 10 % 1 ? 2 : 1));
+}
+function fmtWU(v) { return v === 0 ? 'bodyweight' : v < 0 ? fmtW(-v) + ' kg assisted' : fmtW(v) + ' kg'; }
+function unitLabel(v) { return v === 0 ? 'bodyweight' : v < 0 ? 'kg assist' : 'kg'; }
 function fmtClock(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function fmtDur(ms) { const m = Math.round(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; }
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -760,28 +769,35 @@ async function keepAwake() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.active) keepAwake(); });
 
 /* ---------- session logic ---------- */
-function startWorkout(wid) {
+// Short version: only the exercises listed in the workout's `short`, for days without time for everything.
+function planExercises(w, short) { return short && w.short ? w.exercises.filter(e => w.short.includes(e.id)) : w.exercises; }
+// The workout as it's being done right now: only the exercises this session started with.
+function sessionWorkout() {
+  const a = S.active; const w = byId(a.workoutId);
+  return { ...w, exercises: w.exercises.filter(e => a.sets[e.id]) };
+}
+function startWorkout(wid, short) {
   ensureAudio(); keepAwake();
   const w = byId(wid);
   const sets = {};
-  w.exercises.forEach(ex => {
+  planExercises(w, short).forEach(ex => {
     const last = S.last[ex.id] || [];
     sets[ex.id] = Array.from({ length: ex.sets }, (_, i) => {
       const prev = last[i] || last[last.length - 1];
       return { weight: prev ? prev.weight : ex.weight, reps: ex.reps, done: false, rest: null, at: null };
     });
   });
-  S.active = { workoutId: wid, start: Date.now(), lastLogAt: null, lastLog: null, fired: [], sets };
+  S.active = { workoutId: wid, short: !!short, start: Date.now(), lastLogAt: null, lastLog: null, fired: [], sets };
   focus = null;
   save();
   view.screen = 'session';
   render();
-  toast('Workout started · ' + fmtDate(Date.now()));
+  toast((short ? 'Short workout' : 'Workout') + ' started · ' + fmtDate(Date.now()));
   announce('Prepare for Battle', true);
 }
 function currentSet() {
   const a = S.active; if (!a) return null;
-  for (const ex of byId(a.workoutId).exercises) {
+  for (const ex of sessionWorkout().exercises) {
     const i = a.sets[ex.id].findIndex(s => !s.done);
     if (i >= 0) return { ex, i, s: a.sets[ex.id][i] };
   }
@@ -795,7 +811,7 @@ function ensureFocus() {
   if (focus && S.active.sets[focus.exId]) return;
   const c = currentSet();
   if (c) return setFocus(c.ex.id, c.i);
-  const w = byId(S.active.workoutId); const ex = w.exercises[w.exercises.length - 1];
+  const w = sessionWorkout(); const ex = w.exercises[w.exercises.length - 1];
   setFocus(ex.id, ex.sets - 1);
 }
 function focusExercise(exId) {
@@ -803,7 +819,7 @@ function focusExercise(exId) {
   setFocus(exId, j >= 0 ? j : list.length - 1);
 }
 function logSet(exId, i, weight, reps) {
-  const a = S.active; const w = byId(a.workoutId); const list = a.sets[exId]; const s = list[i];
+  const a = S.active; const w = sessionWorkout(); const list = a.sets[exId]; const s = list[i];
   const now = Date.now();
   if (s.done) {                       // editing an already logged set
     s.weight = weight; s.reps = reps;
@@ -841,12 +857,12 @@ function undoSet(exId, i) {
   save(); setFocus(exId, i); render(); toast('Set ' + (i + 1) + ' unmarked');
 }
 function finishWorkout() {
-  const a = S.active; const w = byId(a.workoutId);
+  const a = S.active; const w = sessionWorkout();
   const sets = [];
   w.exercises.forEach(ex => a.sets[ex.id].forEach((s, i) => { if (s.done) sets.push({ exId: ex.id, i, weight: s.weight, reps: s.reps, rest: s.rest, at: s.at }); }));
   const prevLast = JSON.parse(JSON.stringify(S.last));
   const allDone = Object.values(a.sets).flat().every(s => s.done);
-  const sess = { id: 's' + a.start, workoutId: a.workoutId, start: a.start, end: Date.now(), sets };
+  const sess = { id: 's' + a.start, workoutId: a.workoutId, short: !!a.short, start: a.start, end: Date.now(), sets };
   S.history.push(sess);
   rebuildLast(S);
   S.active = null; focus = null;
@@ -873,7 +889,7 @@ function screenHome() {
     const aw = byId(S.active.workoutId);
     resume = `<button class="resume c-${aw.color}" data-act="resume">
       <span class="pulse"></span>
-      <span class="grow"><b>${aw.name} in progress</b><br><span class="meta">Started ${fmtTime(S.active.start)} · tap to return</span></span>
+      <span class="grow"><b>${aw.name}${S.active.short ? ' (short)' : ''} in progress</b><br><span class="meta">Started ${fmtTime(S.active.start)} · tap to return</span></span>
       <span class="chev">${ICON.chev}</span></button>`;
   }
   return `
@@ -888,9 +904,10 @@ function screenHome() {
       <span class="plate lg"></span>
       <div><h2>${next.name}</h2><div class="meta">${lastOf(next)}</div></div>
     </div>
-    <div class="ex-preview">${next.exercises.map(e => e.name).join(' · ')}</div>
+    ${lengthToggle(next)}
+    <div class="ex-preview">${planExercises(next, view.short).map(e => e.name).join(' · ')}</div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
-      <button class="btn btn-primary" data-act="start" data-w="${next.id}" ${S.active ? 'disabled style="opacity:.4"' : ''}>Start workout</button>
+      <button class="btn btn-primary" data-act="start" data-w="${next.id}" ${S.active ? 'disabled style="opacity:.4"' : ''}>Start ${view.short ? 'short ' : ''}workout</button>
       <button class="btn btn-ghost" data-act="preview" data-w="${next.id}">See plan</button>
     </div>
   </div>
@@ -910,14 +927,24 @@ function screenHome() {
   </div>`;
 }
 
+function lengthToggle(w) {
+  if (!w.short) return '';
+  return `<div class="len-toggle" role="group" aria-label="Workout length">
+    <button class="${view.short ? '' : 'on'}" data-act="len" data-short="0" aria-pressed="${!view.short}">Full · ${w.exercises.length} exercises</button>
+    <button class="${view.short ? 'on' : ''}" data-act="len" data-short="1" aria-pressed="${!!view.short}">Short · ${w.short.length} exercises</button>
+  </div>`;
+}
+
 function screenPreview() {
   const w = byId(view.workoutId);
   const l = lastSessionOf(w.id);
+  const exs = planExercises(w, view.short);
   return `
   <button class="back" data-act="home">${ICON.back} Workouts</button>
-  <div class="hero c-${w.color}"><span class="plate lg"></span><div><h1>${w.name}</h1><div class="meta">${w.exercises.length} exercises · ${w.exercises.reduce((n, e) => n + e.sets, 0)} sets${l ? ' · last ' + fmtDate(l.start) : ''}</div></div></div>
+  <div class="hero c-${w.color}"><span class="plate lg"></span><div><h1>${w.name}</h1><div class="meta">${exs.length} exercises · ${exs.reduce((n, e) => n + e.sets, 0)} sets${l ? ' · last ' + fmtDate(l.start) : ''}</div></div></div>
+  <div class="c-${w.color}">${lengthToggle(w)}</div>
   <div class="plan-list">
-    ${w.exercises.map(ex => {
+    ${exs.map(ex => {
       const last = S.last[ex.id];
       const lw = last ? last.map(x => fmtW(x.weight)) : null;
       const uniq = lw ? [...new Set(lw)] : null;
@@ -926,14 +953,14 @@ function screenPreview() {
     }).join('')}
   </div>
   <div class="c-${w.color}">
-    <button class="btn btn-primary btn-block" data-act="start" data-w="${w.id}" ${S.active ? 'disabled style="opacity:.4"' : ''}>${S.active ? 'Finish your current workout first' : 'Start workout'}</button>
+    <button class="btn btn-primary btn-block" data-act="start" data-w="${w.id}" ${S.active ? 'disabled style="opacity:.4"' : ''}>${S.active ? 'Finish your current workout first' : view.short ? 'Start short workout' : 'Start workout'}</button>
   </div>
   <p class="sample-note">To change exercises, sets or reps, tell Claude.</p>`;
 }
 
 function screenSession() {
   ensureFocus();
-  const a = S.active; const w = byId(a.workoutId);
+  const a = S.active; const w = sessionWorkout();
   const cur = currentSet();
   const all = Object.values(a.sets).flat();
   const done = all.filter(s => s.done).length;
@@ -956,7 +983,7 @@ function screenSession() {
   return `
   <div class="session-bar">
     <button class="icon-btn" data-act="home" aria-label="Back to workouts">${ICON.back}</button>
-    <div class="grow"><h1>${w.name}</h1><div class="meta num"><span id="elapsed">${fmtClock(Date.now() - a.start)}</span> · ${done}/${all.length} sets</div></div>
+    <div class="grow"><h1>${w.name}</h1><div class="meta num">${a.short ? 'Short · ' : ''}<span id="elapsed">${fmtClock(Date.now() - a.start)}</span> · ${done}/${all.length} sets</div></div>
     <button class="icon-btn" data-act="overview" aria-label="See all sets">${ICON.list}</button>
     <button class="finish-btn" data-act="finish">Finish</button>
   </div>
@@ -1012,7 +1039,7 @@ function wheelMarkup(ex, action) {
       </svg>
       <button class="wheel-center" data-act="apply" id="wheel-apply">
         <span class="v num" id="wheel-v">${fmtW(focus.weight)}</span>
-        <span class="u" id="wheel-u">${focus.weight ? 'kg' : 'bodyweight'}</span>
+        <span class="u" id="wheel-u">${unitLabel(focus.weight)}</span>
         <span class="a">${action}</span>
       </button>
     </div>
@@ -1022,7 +1049,7 @@ function wheelMarkup(ex, action) {
 
 function screenSummary() {
   const { sess, prevLast } = view.summary; const w = byId(sess.workoutId);
-  const vol = sess.sets.reduce((n, s) => n + s.weight * s.reps, 0);
+  const vol = sess.sets.reduce((n, s) => n + Math.max(0, s.weight) * s.reps, 0);
   const rests = sess.sets.map(s => s.rest).filter(Boolean);
   const avgRest = rests.length ? rests.reduce((a, b) => a + b, 0) / rests.length : 0;
   const changes = [];
@@ -1090,7 +1117,7 @@ function screenHistory() {
     ${list.length ? list.map(h => { const w = byId(h.workoutId); return `
       <button class="hist-row" data-act="detail" data-id="${h.id}">
         <span class="plate sm c-${w.color}"></span>
-        <span class="grow"><b>${w.name}</b><br><span class="meta">${fmtDate(h.start)} · started ${fmtTime(h.start)}</span></span>
+        <span class="grow"><b>${w.name}</b>${h.short ? ' <span class="meta">· short</span>' : ''}<br><span class="meta">${fmtDate(h.start)} · started ${fmtTime(h.start)}</span></span>
         <span class="r num">${fmtDur(h.end - h.start)}<br>${h.sets.length} sets</span>
       </button>`; }).join('') : `<div class="empty">No workouts logged ${view.selDay ? 'on this day' : 'this month'}.</div>`}
   </div>`;
@@ -1174,7 +1201,7 @@ function bindWheel() {
   const angleOf = e => { const r = wheel.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI; };
   const paint = () => {
     $('#wheel-v').textContent = fmtW(focus.weight);
-    $('#wheel-u').textContent = focus.weight ? 'kg' : 'bodyweight';
+    $('#wheel-u').textContent = unitLabel(focus.weight);
     $('#reps-v').textContent = focus.reps;
     const d = $('#delta');
     if (l) { const diff = +(focus.weight - l.weight).toFixed(2); d.className = 'delta ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : ''); d.textContent = diff === 0 ? 'Same as last' : (diff > 0 ? '+' : '−') + fmtW(Math.abs(diff)) + ' kg'; }
@@ -1195,7 +1222,7 @@ function bindWheel() {
     lastAng = ang; acc += d; focus.spin(d);
     const n = Math.round(acc / DEG);
     if (n !== steps) {
-      const v = Math.max(0, +(base + n * ex.step).toFixed(2));
+      const v = +(base + n * ex.step).toFixed(2);
       if (v !== focus.weight) { focus.weight = v; tick(); paint(); }
       steps = n;
     }
@@ -1205,7 +1232,7 @@ function bindWheel() {
 }
 
 function sheetOverview() {
-  const a = S.active; const w = byId(a.workoutId);
+  const a = S.active; const w = sessionWorkout();
   return `
   <div class="sheet-head"><div><h2>All sets</h2><div class="meta">Tap an exercise to jump to it</div></div></div>
   <div>${w.exercises.map(ex => `
@@ -1284,7 +1311,7 @@ function sheetSounds() {
 function sheetDetail() {
   const h = S.history.find(x => x.id === sheet.id); const w = byId(h.workoutId);
   return `
-  <div class="sheet-head c-${w.color}" style="justify-content:flex-start"><span class="plate"></span><div><h2>${w.name}</h2><div class="meta">${fmtDate(h.start)} · ${fmtTime(h.start)}–${fmtTime(h.end)} · ${fmtDur(h.end - h.start)}${h.sample ? ' · example' : ''}</div></div></div>
+  <div class="sheet-head c-${w.color}" style="justify-content:flex-start"><span class="plate"></span><div><h2>${w.name}</h2><div class="meta">${fmtDate(h.start)} · ${fmtTime(h.start)}–${fmtTime(h.end)} · ${fmtDur(h.end - h.start)}${h.short ? ' · short' : ''}</div></div></div>
   <div>
   ${w.exercises.map(ex => {
     const sets = h.sets.filter(s => s.exId === ex.id);
@@ -1314,11 +1341,12 @@ document.addEventListener('click', e => {
     case 'home': view.screen = 'home'; clearArmed = false; render(); scrollTo(0, 0); break;
     case 'history': view.screen = 'history'; view.selDay = null; render(); scrollTo(0, 0); break;
     case 'preview': view.screen = 'preview'; view.workoutId = t.dataset.w; render(); scrollTo(0, 0); break;
-    case 'start': if (!S.active) { startWorkout(t.dataset.w); scrollTo(0, 0); } break;
+    case 'start': if (!S.active) { startWorkout(t.dataset.w, view.short); scrollTo(0, 0); } break;
+    case 'len': view.short = t.dataset.short === '1'; render(); break;
     case 'resume': view.screen = 'session'; keepAwake(); render(); break;
     case 'undo': undoSet(focus.exId, focus.i); break;
     case 'apply': ensureAudio(); logSet(focus.exId, focus.i, focus.weight, focus.reps); break;
-    case 'fine': { const ex = exById(byId(S.active.workoutId), focus.exId); focus.weight = Math.max(0, +(focus.weight + (+t.dataset.dir) * ex.step).toFixed(2)); focus.spin(+t.dataset.dir * 15); tick(); focus.paint(); break; }
+    case 'fine': { const ex = exById(byId(S.active.workoutId), focus.exId); focus.weight = +(focus.weight + (+t.dataset.dir) * ex.step).toFixed(2); focus.spin(+t.dataset.dir * 15); tick(); focus.paint(); break; }
     case 'reps': focus.reps = Math.max(0, focus.reps + (+t.dataset.dir)); focus.paint(); break;
     case 'focus-ex': focusExercise(t.dataset.ex); sheet = null; render(); scrollTo(0, 0); break;
     case 'focus-set': setFocus(t.dataset.ex, +t.dataset.i); render(); break;
