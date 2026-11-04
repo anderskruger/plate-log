@@ -234,6 +234,10 @@ function qEnd() {
   render(); scrollTo(0, 0);
 }
 setInterval(() => { if (S.quest) { qArrive(false); qTick(); } }, 500);
+// fetch the rank icons once (see quest-ranks.js), then swap them in for the stand-ins
+addEventListener('load', () => QRanks.load().then(ok => {
+  if (ok) document.querySelectorAll('.qm-emblem').forEach(e => { e.src = QRanks.src(+e.dataset.rank); });
+}));
 
 /* ---------- links from the WoW watcher on the PC (tools/wow-watcher.ps1, via an ntfy notification) ----------
    platelog://quest/start?at=<ms>  WoW started: start quest mode from that moment
@@ -394,7 +398,7 @@ function qDrawFx() {
 function qLevelUp(from, to) {
   qPlay('level');
   const el = document.createElement('div'); el.className = 'qm-levelup'; el.dataset.act = 'q-level-close';
-  el.innerHTML = `<div class="qm-rays"></div><div class="qm-lvl-inner"><div class="qm-caps">New rank</div><div class="qm-big num">${to}</div>
+  el.innerHTML = `<div class="qm-rays"></div><div class="qm-lvl-inner"><div class="qm-caps">New rank</div>${qEmblem(to, 'qm-big-emblem')}
     <div class="qm-lore" style="font-size:22px;color:var(--q-gold)">${qRank(to)}</div><div class="qm-rank-of">Rank ${to} of ${Q_MAX_RANK}</div></div>`;
   document.body.appendChild(el);
   qBurst(innerWidth / 2, innerHeight * 0.42, 150, 1.4); setTimeout(() => qBurst(innerWidth / 2, innerHeight * 0.42, 90, 1.1), 500);
@@ -427,17 +431,19 @@ const Q_ICON = {
   tab: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5h4l-.8 12h-2.4z"/><circle cx="12" cy="19" r="2.4"/></svg>',
 };
 
+// the rank's emblem (quest-ranks.js), pixel art
+const qEmblem = (rank, cls = '') => `<img class="qm-emblem ${cls}" src="${QRanks.src(rank)}" alt="${qRank(rank)}" data-rank="${rank}">`;
 function qHeroHtml() {
   const h = qHero();
   return `<div class="qm-hero">
-    <div class="qm-portrait"><b class="num qm-hero-level">${h.level}</b></div>
+    <div class="qm-portrait">${qEmblem(h.level, 'qm-hero-emblem')}</div>
     <div class="qm-xp"><div class="qm-xp-top"><b class="qm-hero-rank">${qRank(h.level)}</b><span class="num qm-hero-xp">${qXpText(h)}</span></div>
       <div class="qm-xp-track"><div class="qm-xp-fill" style="width:${qXpPct(h)}%"></div></div></div></div>`;
 }
 function qPaintHero(glow) {
   const h = qHero();
   document.querySelectorAll('.qm-xp-fill').forEach(f => { f.style.width = qXpPct(h) + '%'; });
-  document.querySelectorAll('.qm-hero-level').forEach(e => { e.textContent = h.level; });
+  document.querySelectorAll('.qm-hero-emblem').forEach(e => { e.src = QRanks.src(h.level); e.alt = qRank(h.level); });
   document.querySelectorAll('.qm-hero-rank').forEach(e => { e.textContent = qRank(h.level); });
   document.querySelectorAll('.qm-hero-xp').forEach(e => { e.textContent = qXpText(h); });
   if (glow) document.querySelectorAll('.qm-xp-track').forEach(t => { t.classList.add('glow'); setTimeout(() => t.classList.remove('glow'), 700); });

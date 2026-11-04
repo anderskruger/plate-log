@@ -1,5 +1,10 @@
 /* ---------- Rank emblems: one pixel-art insignia per hero rank, Scout (1) to High Warlord (14) ----------
-   Original art, drawn with code at 24 × 24 pixels: each emblem is a stack of shapes in a metal or color, shaded with
+   The emblems you see are the game's own Horde rank icons, turned into pixel art on the phone. They aren't part of
+   this app: on first launch the phone downloads them from Wowhead's image server, redraws each one at 32 × 32 in a
+   small palette with dark outlines, and keeps the result in this browser (localStorage). Until then, or offline,
+   the original emblems below stand in.
+
+   The stand-ins are original art, drawn with code at 24 × 24 pixels: each emblem is a stack of shapes in a metal or color, shaded with
    a light top-left edge and a dark bottom-right edge, outlined, then scaled up by CSS. Lower ranks are chevrons on a
    red badge, the middle ranks shields, the top ranks crossed swords, stars and a tusked helm. */
 
@@ -92,5 +97,57 @@ const QRanks = (() => {
     for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) { const c = px[j * R + i]; if (c) { ctx.fillStyle = c; ctx.fillRect(i, j, 1, 1); } }
   }
 
-  return { RES, COUNT: EMBLEMS.length, draw };
+  // ---- the game's rank icons, pixelated on this device ----
+  const ICON_URL = n => `https://wow.zamimg.com/images/wow/icons/large/achievement_pvp_h_${String(n).padStart(2, '0')}.jpg`;
+  const ICON_KEY = 'platelog-rank-icons-v1', ICON_RES = 32;
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const PAL = { red: ['#4a0b08', '#8e1a12', '#c8281b', '#f2442e'], gold: ['#6e4a07', '#b8861a', '#ecbc3c', '#fff0a0'],
+    silver: ['#56606b', '#9aa5b1', '#dfe6ee'], dark: [OUTLINE] };
+  const PAL_RGB = Object.entries(PAL).flatMap(([k, cs]) => cs.map(c => ({ k, c, rgb: hex(c) })));
+  const nearest = (r, g, b) => {
+    let best = PAL_RGB[0], bd = Infinity;
+    for (const p of PAL_RGB) { const d = 2 * (r - p.rgb[0]) ** 2 + 4 * (g - p.rgb[1]) ** 2 + 3 * (b - p.rgb[2]) ** 2; if (d < bd) { bd = d; best = p; } }
+    return best;
+  };
+  function pixelate(img) {
+    const R = ICON_RES, cv = document.createElement('canvas'); cv.width = cv.height = R;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingQuality = 'high';
+    const b = Math.round(img.width * 0.06);   // trim the icon's own bevelled frame
+    ctx.drawImage(img, b, b, img.width - 2 * b, img.height - 2 * b, 0, 0, R, R);
+    const data = ctx.getImageData(0, 0, R, R).data, cls = [];
+    for (let i = 0; i < R * R; i++) cls.push(nearest(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]));
+    const metal = (x, y) => x >= 0 && y >= 0 && x < R && y < R && cls[y * R + x].k !== 'red' && cls[y * R + x].k !== 'dark';
+    for (let y = 0; y < R; y++) for (let x = 0; x < R; x++) {
+      const p = cls[y * R + x], rim = p.k === 'red' && (metal(x - 1, y) || metal(x + 1, y) || metal(x, y - 1) || metal(x, y + 1));
+      ctx.fillStyle = rim ? OUTLINE : p.c; ctx.fillRect(x, y, 1, 1);
+    }
+    return cv.toDataURL('image/png');
+  }
+  let icons = null;
+  try { const v = JSON.parse(localStorage.getItem(ICON_KEY)); if (Array.isArray(v) && v.length === EMBLEMS.length) icons = v; } catch (e) {}
+  let loading = null;
+  // Downloads and pixelates the 14 icons once; resolves true when they're ready (false if offline or blocked).
+  function load() {
+    if (icons) return Promise.resolve(true);
+    return loading || (loading = Promise.all(EMBLEMS.map((_, i) => new Promise((ok, fail) => {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => { try { ok(pixelate(img)); } catch (e) { fail(e); } };
+      img.onerror = fail; img.src = ICON_URL(i + 1);
+    }))).then(list => {
+      icons = list;
+      try { localStorage.setItem(ICON_KEY, JSON.stringify(list)); } catch (e) {}
+      return true;
+    }).catch(() => { loading = null; return false; }));
+  }
+  // An image URL for a rank's emblem: the pixelated game icon when it's here, the stand-in otherwise.
+  const fallback = {};
+  function src(rank) {
+    const r = Math.max(1, Math.min(EMBLEMS.length, rank));
+    if (icons) return icons[r - 1];
+    if (!fallback[r]) { const cv = document.createElement('canvas'); cv.width = cv.height = RES; draw(cv.getContext('2d'), r); fallback[r] = cv.toDataURL('image/png'); }
+    return fallback[r];
+  }
+
+  return { RES, COUNT: EMBLEMS.length, draw, load, src };
 })();

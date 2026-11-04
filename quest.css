@@ -37,9 +37,11 @@
 
 /* hero: portrait ring with the level, and a segmented XP bar */
 .qm-hero { display: flex; align-items: center; gap: 12px; width: 100%; }
-.qm-portrait { width: 48px; height: 48px; border-radius: 50%; flex: none; display: grid; place-items: center;
-  background: radial-gradient(circle, #2d2611, #15130c); box-shadow: 0 0 0 3px var(--q-gold-deep), 0 0 0 5px #3b2e10, 0 4px 12px #0009; }
-.qm-portrait b { font-family: var(--font-display); font-weight: 800; font-size: 24px; color: var(--q-gold); line-height: 1; }
+.qm-portrait { width: 48px; height: 48px; border-radius: 9px; flex: none; display: grid; place-items: center; overflow: hidden;
+  background: #15130c; box-shadow: 0 0 0 2px #140b08, 0 0 0 4px var(--q-gold-deep), 0 0 0 5px #3b2e10, 0 4px 12px #0009; }
+.qm-emblem { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.qm-portrait .qm-emblem { width: 48px; height: 48px; }
+.qm-big-emblem { width: 128px; height: 128px; border-radius: 14px; box-shadow: 0 0 0 3px #140b08, 0 0 0 6px var(--q-gold-deep), 0 0 40px #f6c74466; animation: qm-pop 0.6s cubic-bezier(.2,.9,.3,1.5); }
 .qm-xp { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; text-align: left; }
 .qm-xp-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); }
 .qm-xp-top b { color: var(--chalk); font-weight: 600; }
