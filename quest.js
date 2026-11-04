@@ -3,7 +3,7 @@
    The quests for the next few hours are planned ahead with their arrival times, so the lock-screen card and its
    chime keep working while the phone is locked and this page isn't running. To change quests, tell Claude. */
 
-// amount = base + step per level above 1, capped at max. kind: reps or seconds; each: per arm / per side.
+// amount = base + step for every Q_GROW_EVERY times you've done that exercise, capped at max. kind: reps or seconds; each: per arm / per side.
 // where: 'both' for Home and Office mode, 'office' for Office mode only; without it, Home mode only.
 const QUESTS = [
   { id: 'pushups', cat: 'body', name: 'Push-ups', quest: 'Raise the Rampart', kind: 'reps', base: 8, step: 1, max: 25, how: 'Body in one straight line. Knees down is fine.' },
@@ -50,16 +50,41 @@ const qEx = id => QUESTS.find(e => e.id === id);
 // Home mode: everything you can do at home while gaming. Office mode: stretches, standing and walking.
 const qInMode = (e, mode) => mode === 'office' ? !!e.where : e.where !== 'office';
 const qLabel = mode => mode === 'office' ? 'Office quests' : 'Quest mode';
-function qAmount(ex, level, elite) {
-  const n = Math.min(ex.max, ex.base + ex.step * (level - 1));
+// Each exercise gets harder on its own, as you do it: not with the hero's rank.
+const Q_GROW_EVERY = 3;
+function qTimesDone(exId) {
+  let n = S.quest ? S.quest.done.filter(d => d.exId === exId).length : 0;
+  for (const e of S.questLog || []) for (const d of e.quests) if (d.exId === exId) n++;
+  return n;
+}
+const qBase = (ex, times) => Math.min(ex.max, ex.base + ex.step * Math.floor(times / Q_GROW_EVERY));
+function qAmount(ex, elite) {
+  const n = qBase(ex, qTimesDone(ex.id));
   if (!elite) return n;
   const unit = ex.kind === 'time' ? 5 : 1;
   return Math.round(n * 1.5 / unit) * unit;
 }
 const qSecs = q => q.amount * (qEx(q.exId).each ? 2 : 1);
-const qXpNeed = level => 100 + 25 * (level - 1);
-const qRank = level => level < 5 ? 'Squire' : level < 10 ? 'Knight' : level < 20 ? 'Champion' : 'Legend';
-function qHero() { return S.hero || (S.hero = { level: 1, xp: 0 }); }
+// The hero's level is a rank, from Scout (1) to High Warlord (14): about 200 quests to the top.
+const Q_RANKS = ['Scout', 'Grunt', 'Sergeant', 'Senior Sergeant', 'First Sergeant', 'Stone Guard', 'Blood Guard',
+  'Legionnaire', 'Centurion', 'Champion', 'Lieutenant General', 'General', 'Warlord', 'High Warlord'];
+const Q_MAX_RANK = Q_RANKS.length;
+const qXpNeed = level => level >= Q_MAX_RANK ? Infinity : 150 + 50 * (level - 1);
+const qRank = level => Q_RANKS[Math.min(level, Q_MAX_RANK) - 1];
+function qHero() {
+  const h = S.hero || (S.hero = { level: 1, xp: 0, v: 2 });
+  if (!h.v) {
+    // heroes from before the ranks: same total XP, counted on the new, slower ladder
+    let total = h.xp;
+    for (let l = 1; l < h.level; l++) total += 100 + 25 * (l - 1);
+    h.level = 1; h.xp = total; h.v = 2;
+    while (h.xp >= qXpNeed(h.level)) { h.xp -= qXpNeed(h.level); h.level++; }
+    if (S.quest) [...S.quest.waiting, ...S.quest.plan].forEach(q => { q.amount = qAmount(qEx(q.exId), q.elite); });
+  }
+  return h;
+}
+const qXpText = h => h.level >= Q_MAX_RANK ? 'Max rank' : `${h.xp} / ${qXpNeed(h.level)} XP`;
+const qXpPct = h => h.level >= Q_MAX_RANK ? 100 : h.xp / qXpNeed(h.level) * 100;
 function qTask(q) { const ex = qEx(q.exId); return `${ex.name} · ${q.amount}${ex.kind === 'time' ? ' s' : ''}${ex.each ? ' each ' + ex.each : ''}`; }
 function qClock(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), p = n => String(n).padStart(2, '0');
@@ -105,7 +130,7 @@ function qMake(at) {
   const ex = qPick();
   const elite = ex.cat !== 'break' && Math.random() < Q_ELITE_CHANCE;
   S.quest.lastCat = ex.cat;
-  return { id: ++S.quest.seq, exId: ex.id, elite, amount: qAmount(ex, qHero().level, elite), at, swapped: false };
+  return { id: ++S.quest.seq, exId: ex.id, elite, amount: qAmount(ex, elite), at, swapped: false };
 }
 function qTopUp() {
   const Q = S.quest;
@@ -144,17 +169,16 @@ function qRecord(id, at) {
   const gain = Q_CAT_XP[qEx(q.exId).cat] * (q.elite ? 2 : 1) + (swift ? Q_SWIFT_XP : 0);
   Q.done.push({ id: q.id, exId: q.exId, elite: q.elite, amount: q.amount, at, gain, swift });
   Q.xp += gain;
+  Q.plan.forEach(p => { p.amount = qAmount(qEx(p.exId), p.elite); });   // this exercise may have grown
   qTopUp();
   return { q, gain, swift };
 }
-// Adds XP to the hero; returns the level before if it went up (and makes the planned quests a little harder).
+// Adds XP to the hero; returns the rank before if it went up.
 function qAddXp(gain) {
   const h = qHero(), from = h.level;
   h.xp += gain;
   while (h.xp >= qXpNeed(h.level)) { h.xp -= qXpNeed(h.level); h.level++; }
-  if (h.level === from) return null;
-  if (S.quest) S.quest.plan.forEach(p => { p.amount = qAmount(qEx(p.exId), h.level, p.elite); });
-  return from;
+  return h.level === from ? null : from;
 }
 function qComplete(id) {
   const scroll = document.getElementById('qm-scroll');
@@ -162,6 +186,8 @@ function qComplete(id) {
   const r = qRecord(id, Date.now()); if (!r) return;
   save();
   qPlay('complete'); qCheer = true;
+  const ex = qEx(r.q.exId), times = qTimesDone(ex.id), grown = qBase(ex, times);
+  if (grown > qBase(ex, times - 1)) setTimeout(() => toast(`${ex.name} grows to ${grown}${ex.kind === 'time' ? ' s' : ''} next time`), 1700);
   const row = document.getElementById('qm-obj-row'); if (row) row.classList.add('done');
   const cnt = document.getElementById('qm-obj-count'); if (cnt && qEx(r.q.exId).kind === 'reps') cnt.innerHTML = `${r.q.amount}<small>/${r.q.amount}</small>`;
   const box = (scroll || $('#app')).getBoundingClientRect();
@@ -193,7 +219,7 @@ function qTakeCardQuests(evs) {
 function qSwap(id) {
   const q = S.quest.waiting.find(x => x.id === id); if (!q || q.swapped) return;
   const ex = qPick([q.exId]);
-  q.exId = ex.id; q.amount = qAmount(ex, qHero().level, q.elite); q.swapped = true;
+  q.exId = ex.id; q.amount = qAmount(ex, q.elite); q.swapped = true;
   if (qTimer && qTimer.id === id) qTimer = null;
   qShown.delete(q.id); save(); render();
 }
@@ -330,7 +356,7 @@ function qFlyXp(x, y, gain, done) {
   const n = Math.min(14, Math.round(gain / 4));
   let left = n;
   for (let i = 0; i < n; i++) {
-    qParts.push({ orb: true, x: x + (Math.random() - 0.5) * 80, y: y + (Math.random() - 0.5) * 60, tx: b.left + b.width * Math.min(1, h.xp / qXpNeed(h.level)), ty: b.top + b.height / 2,
+    qParts.push({ orb: true, x: x + (Math.random() - 0.5) * 80, y: y + (Math.random() - 0.5) * 60, tx: b.left + b.width * qXpPct(h) / 100, ty: b.top + b.height / 2,
       t: -i * 0.06, life: 1, arrive: () => { qPlay('coin'); if (--left === 0) done(); } });
   }
   qRunFx();
@@ -367,10 +393,9 @@ function qDrawFx() {
 }
 function qLevelUp(from, to) {
   qPlay('level');
-  const chips = ['pushups', 'plank', 'curls'].map(id => { const e = qEx(id), u = e.kind === 'time' ? ' s' : ''; return `<span>${e.name}<b class="num">${qAmount(e, from)}${u} → ${qAmount(e, to)}${u}</b></span>`; });
   const el = document.createElement('div'); el.className = 'qm-levelup'; el.dataset.act = 'q-level-close';
-  el.innerHTML = `<div class="qm-rays"></div><div class="qm-lvl-inner"><div class="qm-caps">Level up</div><div class="qm-big num">${to}</div>
-    <div class="qm-lore" style="font-size:22px;color:var(--q-gold)">${qRank(to)}</div><div class="qm-harder">${chips.join('')}</div></div>`;
+  el.innerHTML = `<div class="qm-rays"></div><div class="qm-lvl-inner"><div class="qm-caps">New rank</div><div class="qm-big num">${to}</div>
+    <div class="qm-lore" style="font-size:22px;color:var(--q-gold)">${qRank(to)}</div><div class="qm-rank-of">Rank ${to} of ${Q_MAX_RANK}</div></div>`;
   document.body.appendChild(el);
   qBurst(innerWidth / 2, innerHeight * 0.42, 150, 1.4); setTimeout(() => qBurst(innerWidth / 2, innerHeight * 0.42, 90, 1.1), 500);
 }
@@ -403,18 +428,18 @@ const Q_ICON = {
 };
 
 function qHeroHtml() {
-  const h = qHero(), need = qXpNeed(h.level);
+  const h = qHero();
   return `<div class="qm-hero">
     <div class="qm-portrait"><b class="num qm-hero-level">${h.level}</b></div>
-    <div class="qm-xp"><div class="qm-xp-top"><b class="qm-hero-rank">${qRank(h.level)}</b><span class="num qm-hero-xp">${h.xp} / ${need} XP</span></div>
-      <div class="qm-xp-track"><div class="qm-xp-fill" style="width:${h.xp / need * 100}%"></div></div></div></div>`;
+    <div class="qm-xp"><div class="qm-xp-top"><b class="qm-hero-rank">${qRank(h.level)}</b><span class="num qm-hero-xp">${qXpText(h)}</span></div>
+      <div class="qm-xp-track"><div class="qm-xp-fill" style="width:${qXpPct(h)}%"></div></div></div></div>`;
 }
 function qPaintHero(glow) {
-  const h = qHero(), need = qXpNeed(h.level);
-  document.querySelectorAll('.qm-xp-fill').forEach(f => { f.style.width = h.xp / need * 100 + '%'; });
+  const h = qHero();
+  document.querySelectorAll('.qm-xp-fill').forEach(f => { f.style.width = qXpPct(h) + '%'; });
   document.querySelectorAll('.qm-hero-level').forEach(e => { e.textContent = h.level; });
   document.querySelectorAll('.qm-hero-rank').forEach(e => { e.textContent = qRank(h.level); });
-  document.querySelectorAll('.qm-hero-xp').forEach(e => { e.textContent = `${h.xp} / ${need} XP`; });
+  document.querySelectorAll('.qm-hero-xp').forEach(e => { e.textContent = qXpText(h); });
   if (glow) document.querySelectorAll('.qm-xp-track').forEach(t => { t.classList.add('glow'); setTimeout(() => t.classList.remove('glow'), 700); });
 }
 function qDockHtml() { return qHeroHtml(); }

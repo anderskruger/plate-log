@@ -160,6 +160,4 @@
 .qm-lvl-inner .qm-caps { font-size: 30px; color: var(--chalk); letter-spacing: 0.1em; }
 .qm-big { font-family: var(--font-display); font-weight: 800; font-size: 120px; line-height: 0.85; color: var(--q-gold); text-shadow: 0 4px 0 #6d4f0a, 0 0 40px #f6c74466; animation: qm-pop 0.6s cubic-bezier(.2,.9,.3,1.5); }
 @keyframes qm-pop { from { transform: scale(0.3); opacity: 0; } }
-.qm-harder { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
-.qm-harder span { background: #ffffff10; border-radius: 10px; padding: 8px 10px; font-size: 13px; color: var(--dim); }
-.qm-harder b { display: block; color: var(--chalk); font-size: 16px; }
+.qm-rank-of { margin-top: 6px; font-size: 14px; color: var(--dim); letter-spacing: 0.04em; }
